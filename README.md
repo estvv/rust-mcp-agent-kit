@@ -1,354 +1,432 @@
-# rust-mcp-ecosystem
+# rust-mcp-agent-kit
 
-A Rust-based MCP (Model Context Protocol) ecosystem for local-first AI agents with Ollama.
+A Rust-based MCP (Model Context Protocol) implementation for building AI coding agents.
 
-This is a **monorepo** containing multiple MCP servers, a client library, and a RAG CLI application.
+This project provides the infrastructure to build your own AI agent (like opencode, Claude Code, or Aider), with full control over tools, LLM backend, and data privacy. It's a **learning project** to understand how AI agents work under the hood.
+
+## What this project IS
+
+- An **MCP implementation in Rust** following the [open MCP standard](https://modelcontextprotocol.io/)
+- A **toolkit for building AI agents** that can read/write files, run commands, query APIs
+- A **client library** (`mcp-client`) that orchestrates LLMs and MCP tool servers
+- A **CLI** (`mcp-agent-cli`) for interactive AI chat with tools
+- A **collection of tools** (`mcp-tools/`) organized into profiles
+- **Modular profiles** (`profiles/`) that define which tools an agent can use
+- **Local-first**: Works with Ollama, but supports any LLM (OpenAI, Anthropic, etc.)
+
+## What this project is NOT
+
+- NOT a fork or copy of opencode, Claude Code, or Aider (built from scratch in Rust)
+- NOT tied to any specific LLM provider (use Ollama, OpenAI, Anthropic, or others)
+- NOT a closed system (open standard, extensible, you own the code)
+- NOT a production-ready product (it's a learning/hobby project)
+
+## Why build this?
+
+| Reason | Benefit |
+|--------|---------|
+| **Full control** | Add any tool you want, no limitations |
+| **Privacy** | Everything can run locally (Ollama) |
+| **Learning** | Understand how AI agents work under the hood |
+| **Custom LLM** | Switch between local (free) and cloud (powerful) |
+| **Open standard** | MCP ecosystem is growing, interoperable |
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│              rag-cli                 │
-│      (TUI + RAG + Chat Interface)    │
-│                 │                    │
-│        ┌────────┴────────┐           │
-│        │                 │           │
-│        ▼                 ▼           │
-│   ┌──────────┐    ┌──────────────┐   │
-│   │  Ollama  │    │  mcp-client  │   │
-│   │   API    │    │  (library)   │   │
-│   └──────────┘    └──────┬───────┘   │
-│                          │           │
-└──────────────────────────┼───────────┘
-                           │
-            ┌──────────────┼──────────────┐
-            │              │              │
-            ▼              ▼              ▼
-     ┌─────────────┐ ┌──────────────┐ ┌─────────────┐
-     │ mcp-weather │ │mcp-filesystem│ │ mcp-github  │
-     │   server    │ │   server     │ │   server    │
-     └─────────────┘ └──────────────┘ └─────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                           USER INPUT                                │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│                       mcp-agent-cli (TUI)                          │
+│                                                                    │
+│    ┌──────────────────────────────────────────────────────────┐   │
+│    │  STATUS BAR: Model: glm-5:cloud | Profile: coding | 3t   │   │
+│    └──────────────────────────────────────────────────────────┘   │
+│    ┌──────────────────────────────────────────────────────────┐   │
+│    │                                                          │   │
+│    │  [User] What's the weather in Paris?                    │   │
+│    │                                                          │   │
+│    │  [Assistant] I'll check the weather for you.             │   │
+│    │  [Tool: get_weather] {"city": "Paris"}                   │   │
+│    │  [Tool Result] Sunny, 18°C                               │   │
+│    │  [Assistant] It's sunny and 18°C in Paris right now!    │   │
+│    │                                                          │   │
+│    └──────────────────────────────────────────────────────────┘   │
+│    ┌──────────────────────────────────────────────────────────┐   │
+│    │  > _                                                     │   │
+│    └──────────────────────────────────────────────────────────┘   │
+│                                                                    │
+│    Commands: /help  /profile <name>  /model <name>  /tools  /quit   │
+│                                                                    │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│                         mcp-client                                 │
+│                    (Orchestrator Library)                          │
+│                                                                    │
+│    ┌─────────────────────────────────────────────────────────┐    │
+│    │                      LLM Providers                       │    │
+│    │                                                         │    │
+│    │    OllamaProvider    OpenAIProvider    MockProvider     │    │
+│    │    (localhost:11434) (api.openai.com)  (for testing)     │    │
+│    │                                                         │    │
+│    └─────────────────────────────────────────────────────────┘    │
+│                                                                    │
+│    ┌─────────────────────────────────────────────────────────┐    │
+│    │                    Tool Management                       │    │
+│    │                                                         │    │
+│    │  1. Load profile → spawn tool servers                    │    │
+│    │  2. Collect tool definitions                            │    │
+│    │  3. Send tools to LLM                                    │    │
+│    │  4. Execute tool calls → return results                  │    │
+│    │                                                         │    │
+│    └─────────────────────────────────────────────────────────┘    │
+│                                                                    │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │
+            ┌───────────────┼───────────────┬───────────────┐
+            │               │               │               │
+            ▼               ▼               ▼               ▼
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────┐
+│                  │ │                  │ │                  │ │              │
+│  tool-weather    │ │ tool-filesystem  │ │   tool-system    │ │  tool-web    │
+│                  │ │                  │ │                  │ │              │
+│  get_weather     │ │  read_file       │ │  get_ram_usage   │ │  http_get    │
+│                  │ │  write_file      │ │  get_cpu_usage   │ │  http_post   │
+│                  │ │  list_directory  │ │  get_disk_usage  │ │              │
+│                  │ │  search_files    │ │  get_processes   │ │              │
+│                  │ │                  │ │                  │ │              │
+│  (stdin/stdout)  │ │  (stdin/stdout)  │ │  (stdin/stdout)  │ │ (stdin/out)  │
+│                  │ │                  │ │                  │ │              │
+└──────────────────┘ └──────────────────┘ └──────────────────┘ └──────────────┘
 ```
-
-**Key Points:**
-- Each MCP server is a **separate process** (not a library)
-- `mcp-core` is linked into each server binary (not shown in diagram)
-- `mcp-client` spawns servers via `tokio::process::Command` with `Stdio::piped()`
-- `rag-cli` uses `mcp-client` internally for tool orchestration
 
 ## Project Structure
 
 ```
-rust-mcp-ecosystem/
-├── Cargo.toml                  # Workspace configuration
+rust-mcp-agent-kit/
+├── Cargo.toml                          # Workspace configuration
 ├── crates/
-│   ├── mcp-core/               # Core library (protocol, traits, infrastructure)
-│   ├── mcp-client/             # Client library for Ollama + MCP orchestration
-│   └── mcp-servers/            # MCP server crates
-│       ├── mcp-weather/        # Weather MCP server
-│       └── ...                 # Other MCP servers
-├── rag-cli/                    # RAG CLI application (git submodule)
-├── tests/                      # Integration tests
-├── docs/                       # Documentation
-└── examples/                   # Example configurations
+│   ├── mcp-core/                        # Protocol library (JSON-RPC, Tool trait, Server)
+│   ├── mcp-client/                      # Client library (LLM providers, orchestration)
+│   ├── mcp-agent-cli/                   # Interactive TUI for AI chat
+│   └── mcp-tools/                       # Tool implementations
+│       ├── tool-weather/                # get_weather
+│       ├── tool-filesystem/             # read_file, write_file, list_directory, search_files
+│       ├── tool-system/                 # get_ram_usage, get_cpu_usage, get_disk_usage, get_processes
+│       ├── tool-web/                    # http_get, http_post
+│       └── tool-utilities/              # calculate, format_json, current_time
+└── profiles/                            # Tool profiles (config files)
+    ├── coding.toml                      # Tools for coding assistance
+    ├── personal.toml                    # Personal assistant tools
+    ├── devops.toml                      # DevOps tools
+    └── data.toml                        # Data processing tools
 ```
 
 ## Crates
 
 | Crate | Description | Status |
 |-------|-------------|--------|
-| `mcp-core` | Shared library: protocol types, Tool/Command traits, server/client infrastructure | In Progress |
-| `mcp-client` | Ollama client library with MCP server orchestration | In Progress |
-| `rag-cli` | RAG CLI with MCP integration (git submodule) | Mature |
+| `mcp-core` | Protocol library: JSON-RPC types, Tool/Command traits, Server infrastructure | Done |
+| `mcp-client` | Client library: LLM providers (Ollama, OpenAI, Mock), tool orchestration | Done |
+| `mcp-agent-cli` | Interactive TUI for AI chat with tools | Done |
 
-## MCP Servers
+## Tools
 
-All servers are located under `crates/mcp-servers/`.
+All tools are located under `crates/mcp-tools/`. Each tool crate is a standalone binary.
 
-| Crate | Description | Status |
-|-------|-------------|--------|
-| `mcp-weather` | Weather information via wttr.in | In Progress |
+### tool-weather
 
+| Tool | Description |
+|------|-------------|
+| `get_weather` | Get current weather for a city via wttr.in |
 
-## Modules
+### tool-filesystem
 
-### mcp-core
+| Tool | Description |
+|------|-------------|
+| `read_file` | Read file contents |
+| `write_file` | Write content to file |
+| `list_directory` | List directory contents |
+| `search_files` | Search for files matching a regex pattern |
 
-| Module | Description |
-|--------|-------------|
-| `protocol` | JSON-RPC 2.0 types, MCP messages |
-| `server` | `Server`, `Dispatcher`, `ToolRegistry`, `CommandRegistry` |
-| `tool` | `Tool` trait, `register_tool!` macro, `ToolEntry` |
-| `error` | Error types (`ParseError`, `ToolError`, etc.) |
+### tool-system
 
-### mcp-client
+| Tool | Description |
+|------|-------------|
+| `get_ram_usage` | Get RAM usage statistics |
+| `get_cpu_usage` | Get CPU usage per core |
+| `get_disk_usage` | Get disk space usage |
+| `get_processes` | List top processes by CPU usage |
 
-| Module | Description |
-|--------|-------------|
-| `ollama` | Ollama API client (`/v1/chat/completions`) |
-| `pool` | `ServerPool` for managing MCP server processes |
-| `orchestrator` | `Orchestrator` for chat + tool calling loop |
+### tool-web
 
-### rag-cli
+| Tool | Description |
+|------|-------------|
+| `http_get` | Make HTTP GET request |
+| `http_post` | Make HTTP POST request with JSON body |
 
-| Module | Description |
-|--------|-------------|
-| `tui` | Terminal UI with `ratatui` + `crossterm` |
-| `rag` | RAG implementation, embeddings, vector search |
-| `mcp` | MCP client integration |
+### tool-utilities
+
+| Tool | Description |
+|------|-------------|
+| `calculate` | Evaluate mathematical expressions (+, -, *, /, %, parentheses) |
+| `format_json` | Parse and pretty-print JSON |
+| `current_time` | Get current date and time |
+
+## Profiles
+
+Profiles define which tools are available to an agent. Each profile is a TOML config file.
+
+| Profile | Description | Tools |
+|---------|-------------|-------|
+| `coding` | Coding assistance | filesystem, web, utilities |
+| `personal` | Personal assistant | weather, utilities |
+| `devops` | DevOps operations | system, web, utilities |
+| `data` | Data processing | utilities, filesystem |
+
+### Profile Structure
+
+```toml
+# profiles/coding.toml
+[profile]
+name = "coding"
+description = "Tools for coding assistance"
+
+[tools]
+tool-filesystem = { enabled = true }
+tool-web = { enabled = true }
+tool-utilities = { enabled = true }
+```
+
+### How Profiles Work
+
+```
+User: /profile coding
+
+mcp-client:
+  1. Read profiles/coding.toml
+  2. Identify enabled tools
+  3. Spawn tool-filesystem, tool-web, tool-utilities processes
+  4. Collect tool definitions from each
+  5. Send tools to LLM
+  6. LLM uses only available tools
+```
+
+### Behavior Change
+
+| Profile | Tools Available | LLM Behavior |
+|---------|-----------------|--------------|
+| `coding` | read/write files, web | "I can edit code, fetch docs" |
+| `personal` | weather, calculate, time | "I can answer questions, check weather" |
+| `devops` | system stats, web | "I can monitor infrastructure" |
+
+## mcp-agent-cli
+
+Interactive terminal UI for AI chat with MCP tools.
+
+### Features
+
+- **Status bar**: Shows model, profile, tool count
+- **Chat panel**: Messages with color-coded senders
+- **Input bar**: Type messages or commands
+- **Tool call display**: Shows tool calls and results inline
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show available commands |
+| `/profile <name>` | Load profile (coding, personal, devops, data) |
+| `/model <name>` | Switch LLM model |
+| `/tools` | List loaded tools |
+| `/clear` | Clear chat history |
+| `/quit` | Exit CLI |
+
+### Usage
+
+```bash
+# Build all
+cargo build --release
+
+# Run CLI
+./target/release/mcp-agent-cli
+
+# Inside CLI:
+/profile coding
+What files are in this directory?
+> [Tool: list_directory] → [Result: Cargo.toml, src/, ...]
+
+/model glm-4
+/profile personal
+What's the weather in Tokyo?
+> [Tool: get_weather] → [Result: Rainy, 15°C]
+```
 
 ## Key Design Decisions
 
-### Monorepo Architecture
+### Tools in `mcp-tools/`, Profiles as Config
 
-- All code in one repository
-- Each crate is independently versioned
-- Each crate can be published separately to crates.io
-- Single `git clone` to get everything
-- Cross-crate refactoring is atomic
+- **Tools** = Rust code implementing the `Tool` trait
+- **Profiles** = TOML config files defining which tools to use
+- **Separation** = Logic lives in tools, profiles are just configuration
 
-### Git Submodule
+### Profile-based Tool Selection
 
-`rag-cli` is a git submodule (the only one in this repo):
-- Maintains separate git history
-- Can be developed independently
-- Clone with: `git clone --recursive <repo-url>`
-- Or after clone: `git submodule update --init --recursive`
+- Each profile enables specific tools
+- LLM adapts behavior based on available tools
+- User explicitly chooses profile: `/profile coding`
+- Different profiles = different agent "modes"
 
 ### Microservices Architecture
 
-Each MCP server:
-- Runs as a **separate process**
+Each tool crate:
+- Is a **separate binary** (separate process)
 - Communicates via stdin/stdout (MCP protocol)
-- Has isolated environment (secrets, config)
+- Has isolated environment
 - Can be deployed independently
 
-### Ollama Integration
+### LLM Provider Abstraction
 
-The `mcp-client` uses Ollama's **OpenAI-compatible API** (`/v1/chat/completions`):
-- Structured tool calls (not text parsing)
-- Works with GLM-4, Llama 3.1+, Mistral, and other function-calling models
-- Standardized request/response format
+```rust
+pub trait ChatClient {
+    fn chat(&self, messages: Vec<Message>, tools: Vec<ToolDefinition>) -> Result<ChatResponse, String>;
+}
 
-### Server Lifecycle
-
-The client spawns MCP servers as child processes:
-
-1. Client spawns `mcp-weather` process
-2. Client pipes stdin/stdout
-3. Client sends `initialize` request
-4. Client discovers tools via `tools/list`
-5. Client calls tools via `tools/call`
-6. Client manages process lifecycle
-
-**Do NOT run servers manually** (e.g., `mcp-weather &`). The client manages them.
+OllamaProvider::new("http://localhost:11434", "glm-5:cloud")
+OpenAIProvider::new("sk-...", "gpt-4o")
+MockProvider::with_tool_call("get_weather", r#"{"city": "Paris"}"#)
+```
 
 ## Quick Start
 
 ```bash
-# Clone repository (including submodule)
-git clone --recursive https://github.com/estvv/rust-mcp-ecosystem.git
-cd rust-mcp-ecosystem
+# Clone repository
+git clone https://github.com/estvv/rust-mcp-agent-kit.git
+cd rust-mcp-agent-kit
 
 # Build all crates
 cargo build --release
 
-# Run a specific server (for testing)
-cargo run -p mcp-weather
+# Run CLI
+./target/release/mcp-agent-cli
 
-# Run RAG CLI
-cargo run -p rag-cli -- chat --path ./your-project
+# Inside CLI:
+/profile coding
+Hello, what can you do?
 ```
 
-## Examples
+## Testing
 
-### Using mcp-client Programmatically
+```bash
+# Test tools directly
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | target/release/tool-weather
+
+# Call a tool
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_weather","arguments":{"city":"Paris"}}}' | target/release/tool-weather
+
+# Run mock test (no LLM needed)
+cargo run --example test_mock
+
+# Run with Ollama (requires ollama serve + model)
+cargo run --example test_multi_turn_real
+```
+
+## Using mcp-client Programmatically
 
 ```rust
-use mcp_client::{Orchestrator, OllamaClient, ServerPool, ServerConfig};
+use mcp_client::{Orchestrator, OllamaProvider, Profile};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create server pool and start MCP servers
-    let mut servers = ServerPool::new();
-    servers.start_server("weather", ServerConfig::new("mcp-weather")).await?;
-    servers.start_server("filesystem", ServerConfig::new("mcp-filesystem")).await?;
-
-    // Create Ollama client
-    let ollama = OllamaClient::new("http://localhost:11434", "glm4");
-
-    // Create orchestrator
-    let mut orchestrator = Orchestrator::new(ollama, servers);
-
-    // Chat with automatic tool calling
-    let response = orchestrator.chat("What's the weather in Paris?").await?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load profile
+    let profile = Profile::load_by_name("coding")?;
+    
+    // Create provider and orchestrator
+    let provider = OllamaProvider::new("http://localhost:11434", "glm-5:cloud");
+    let mut orch = Orchestrator::new(provider);
+    
+    // Spawn tools from profile
+    for tool in profile.enabled_tools() {
+        orch.spawn_tool(tool, tool)?;
+    }
+    
+    // Chat with automatic tool execution
+    let response = orch.chat("What's the weather in Paris?")?;
     println!("{}", response);
-
+    
     Ok(())
 }
 ```
 
-### Tool Registration (inventory)
+## Creating a New Tool
 
 ```rust
-use mcp_core::{Tool, ToolError, ToolEntry, register_tool};
+// crates/mcp-tools/tool-mytool/src/tools/mytool.rs
+use mcp_core::{Tool, ToolEntry, ToolError};
 use serde_json::Value;
 
-pub struct WeatherTool;
+pub struct MyTool;
 
-impl Tool for WeatherTool {
-    fn name(&self) -> &'static str { "get_weather" }
-    fn description(&self) -> &'static str { "Get weather for a city" }
+impl Tool for MyTool {
+    fn name(&self) -> &'static str { "my_tool" }
+    fn description(&self) -> &'static str { "Description of what it does" }
     fn input_schema(&self) -> Value {
         serde_json::json!({
             "type": "object",
             "properties": {
-                "city": { "type": "string", "description": "City name" }
+                "input": { "type": "string", "description": "Input parameter" }
             },
-            "required": ["city"]
+            "required": ["input"]
         })
     }
     fn execute(&self, args: Value) -> Result<String, ToolError> {
-        let city = args["city"].as_str()
-            .ok_or_else(|| ToolError::MissingArgument("city".into()))?;
-        // Fetch weather from wttr.in
-        let url = format!("https://wttr.in/{}?format=3", city);
-        let response = reqwest::blocking::get(&url)?;
-        Ok(response.text()?)
+        let input = args["input"].as_str().ok_or_else(|| ToolError::MissingArgument("input".into()))?;
+        Ok(format!("Processed: {}", input))
     }
 }
 
-register_tool!(WeatherTool);
-```
-
-### Manual Registration (musl/WASM fallback)
-
-```rust
-use mcp_core::{ToolRegistry, Tool, Server};
-
-fn main() {
-    let mut registry = ToolRegistry::new();
-    registry.register(Box::new(WeatherTool));
-
-    let server = Server::new(registry);
-    server.run();
-}
-```
-
-## Configuration
-
-### RAG CLI with MCP
-
-```toml
-# ~/.config/rag-cli/config.toml
-[settings]
-chat_model = "glm4"
-embed_model = "nomic-embed-text"
-base_url = "http://localhost:11434"
-
-[mcp]
-enabled = true
-
-[mcp.servers.weather]
-command = "mcp-weather"
-
-[mcp.servers.filesystem]
-command = "mcp-filesystem"
-
-[mcp.servers.github]
-command = "mcp-github"
-env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
-```
-
-### Server Configuration
-
-```toml
-[servers.weather]
-command = "mcp-weather"
-args = []
-env = {}
-
-[servers.filesystem]
-command = "mcp-filesystem"
-args = ["--root", "/home/user"]
-env = {}
-
-[servers.github]
-command = "mcp-github"
-env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
+inventory::submit! { ToolEntry { tool: &MyTool } }
 ```
 
 ## Dependencies
 
 | Crate | Usage |
 |-------|-------|
-| `tokio` | Async runtime, process spawning, sync primitives |
-| `serde` / `serde_json` | Serialization (JSON-RPC, config files) |
-| `thiserror` | Error types |
-| `async-trait` | Async trait definitions |
+| `tokio` | Async runtime |
+| `serde` / `serde_json` | Serialization |
 | `inventory` | Compile-time tool registration |
-| `tracing` | Structured logging |
-| `reqwest` | HTTP client (Ollama API, web tools) |
-| `sysinfo` | System information (mcp-system) |
-| `ratatui` / `crossterm` | Terminal UI (rag-cli) |
+| `minreq` | HTTP client (lightweight) |
+| `ratatui` | TUI framework (mcp-agent-cli) |
+| `crossterm` | Terminal control (mcp-agent-cli) |
+| `sysinfo` | System information (tool-system) |
+| `regex` | Pattern matching (tool-filesystem) |
+| `chrono` | Date/time (tool-utilities) |
 
 ## Model Compatibility
 
-Tested with Ollama models that support function calling:
-- **GLM-4** (primary target)
-- Llama 3.1+
-- Mistral
-- Qwen
+Works with any LLM that supports function calling:
+
+| Provider | Models |
+|----------|--------|
+| **Ollama** | GLM-4, GLM-5:cloud, Llama 3.1+, Mistral, Qwen |
+| **OpenAI** | GPT-4, GPT-4o, GPT-3.5-turbo |
+| **Anthropic** | Claude 3+ (via OpenAI-compatible endpoint) |
+| **Mock** | For testing without LLM |
 
 Uses OpenAI-compatible `/v1/chat/completions` endpoint.
-
-## Chat Flow
-
-```
-User
-  │
-  ▼
-Orchestrator.chat("What's the weather in Paris?")
-  │
-  ├─► Collect tools from all MCP servers
-  │
-  ├─► POST /v1/chat/completions to Ollama
-  │     {
-  │       "model": "glm4",
-  │       "messages": [...],
-  │       "tools": [{ "type": "function", "function": { "name": "get_weather", ... } }]
-  │     }
-  │
-  ├─► Response contains tool_calls
-  │     {
-  │       "choices": [{
-  │         "message": {
-  │           "tool_calls": [{ "function": { "name": "get_weather", "arguments": "{\"city\": \"Paris\"}" } }]
-  │         }
-  │       }]
-  │     }
-  │
-  ├─► Execute tool via MCP server
-  │     tools/call { "name": "get_weather", "arguments": { "city": "Paris" } }
-  │     → "Paris: 15C, partly cloudy"
-  │
-  ├─► Append tool result to messages
-  │
-  ├─► POST /v1/chat/completions again (with tool results)
-  │
-  └─► Final response: "The weather in Paris is 15C and partly cloudy."
-```
-
-## Documentation
-
-- [ROADMAP.md](./ROADMAP.md) - Development roadmap
-- [docs/FEATURES.md](./docs/FEATURES.md) - Feature reference by crate
-- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - Architecture details (coming soon)
-- [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md) - Setup guide (coming soon)
 
 ## Development
 
 ```bash
+# Build all
+cargo build --workspace
+
 # Run tests
 cargo test --workspace
 
@@ -357,10 +435,13 @@ cargo fmt --check
 
 # Lint
 cargo clippy --workspace -- -D warnings
-
-# Build all
-cargo build --workspace
 ```
+
+## Documentation
+
+- [docs/ROADMAP.md](./docs/ROADMAP.md) - Development roadmap
+- [docs/FEATURES.md](./docs/FEATURES.md) - Feature reference
+- [profiles/README.md](./profiles/README.md) - Profile documentation
 
 ## License
 

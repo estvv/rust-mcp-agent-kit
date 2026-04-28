@@ -55,151 +55,143 @@ The foundational library shared across all crates.
 
 ## Client (`mcp-client`)
 
-Orchestrates Ollama and MCP servers for AI-powered tool calling.
+Orchestrates LLMs and MCP servers for AI-powered tool calling.
 
-### Ollama Integration
+### LLM Integration
 
 - [x] OpenAI-compatible API - Uses `/v1/chat/completions` endpoint
 - [x] Structured tool calling - Returns `tool_calls` array (not text to parse)
 - [ ] Streaming responses - Server-sent events for real-time output
 - [x] Multi-turn conversations - Maintains message history
-- [x] Model support - GLM-4, Llama 3.1+, Mistral, Qwen
+- [x] Model support - GLM-4, GLM-5:cloud, Llama 3.1+, Mistral, Qwen
 
-### Server Pool
+### Providers
 
-- [x] `ServerPool` - Manages multiple MCP server processes
-- [x] Server spawning - `tokio::process::Command` with `Stdio::piped()`
-- [x] Lifecycle management - Start, stop, restart servers
-- [x] Auto-initialize - Sends `initialize` request on spawn
-- [x] Tool discovery - Calls `tools/list` on each server
-- [ ] Health monitoring - Detect and restart crashed servers
-- [ ] Resource limits - Limit CPU/memory per server process
+| Provider | Status | Description |
+|----------|--------|-------------|
+| `OllamaProvider` | Done | Local LLM via Ollama (localhost:11434) |
+| `MockProvider` | Done | For testing without LLM |
+| `OpenAIProvider` | Planned | OpenAI API (api.openai.com) |
 
 ### Orchestrator
 
-- [x] `Orchestrator` - Main struct combining Ollama client + server pool
+- [x] `Orchestrator` - Main struct combining LLM client + tool servers
 - [x] `chat()` - Send message, auto-invoke tools, return response
 - [x] Tool aggregation - Collects all tools from all servers
+- [x] Tool execution loop - Automatic tool call → result → continue
 - [ ] Context limit - Warns when tool schemas exceed threshold
 - [ ] Dynamic selection - Choose relevant tools (when 10+ tools exist)
 - [ ] Tool result caching - Cache repeated tool calls
 - [ ] Conversation export - Save/load conversation history
 
-### Configuration
+### Profile System
 
 - [x] TOML config file support
-- [x] Server definitions with command, args, env
-- [ ] Hot reload - Reload config without restart
-- [ ] Environment variable interpolation
+- [x] `Profile::load(path)` - Load from file path
+- [x] `Profile::load_by_name(name)` - Load from profiles/{name}.toml
+- [x] `enabled_tools()` - Get list of enabled tools
+- [ ] Hot reload - Reload profile without restart
 
 ---
 
-## Servers
+## CLI (`mcp-agent-cli`)
 
-All MCP servers are located under `crates/mcp-servers/`. Each server is a standalone binary exposing related tools.
+Interactive terminal UI for AI chat with MCP tools.
 
-### mcp-weather
+### TUI Features
 
-- [x] `get_weather` - Current weather for a city via `wttr.in`
-
-### mcp-filesystem
-
-- [x] `read_file` - Read file contents
-- [x] `write_file` - Write content to file
-- [x] `list_directory` - List directory contents
-- [x] `search_files` - Regex search for files
-- [ ] `create_directory` - Create directory recursively
-- [ ] `delete_file` - Delete a file
-- [ ] `move_file` - Move/rename a file
-- [ ] `copy_file` - Copy a file
-- [ ] `get_file_info` - Get file metadata (size, modified time)
-
-### mcp-system
-
-- [x] `get_ram_usage` - RAM usage stats via `sysinfo`
-- [x] `get_cpu_usage` - CPU usage per core
-- [x] `get_disk_usage` - Disk space usage
-- [x] `get_processes` - Top processes by CPU
-- [ ] `get_network_stats` - Network I/O statistics
-- [ ] `kill_process` - Terminate a process by PID
-- [ ] `get_environment` - Environment variables
-
-### mcp-web
-
-- [x] `http_get` - GET request
-- [x] `http_post` - POST request with JSON body
-- [ ] `http_put` - PUT request
-- [ ] `http_delete` - DELETE request
-- [ ] `http_request` - Generic HTTP request with custom headers
-- [ ] Rate limiting - Prevent abuse
-- [ ] Timeout configuration
-
-### mcp-github
-
-- [ ] `list_repos` - List user repositories
-- [ ] `get_repo` - Get repository info
-- [ ] `list_issues` - List repository issues
-- [ ] `create_issue` - Create new issue
-- [ ] `search_code` - Search code in repo
-- [ ] `list_pull_requests` - List PRs
-- [ ] `create_pull_request` - Create new PR
-- [ ] `get_file_contents` - Get file from repo
-
-**Auth**: Requires `GITHUB_TOKEN` environment variable
-
-### mcp-docker
-
-- [ ] `list_containers` - List all containers
-- [ ] `get_container` - Get container details
-- [ ] `container_logs` - Get container logs
-- [ ] `exec_container` - Execute command in container
-- [ ] `start_container` - Start a stopped container
-- [ ] `stop_container` - Stop a running container
-- [ ] `list_images` - List Docker images
-- [ ] `build_image` - Build image from Dockerfile
-
-### mcp-database
-
-- [ ] `query` - Execute SQL query
-- [ ] `list_tables` - List all tables
-- [ ] `describe_table` - Get table schema
-- [ ] Connection pooling - Reuse database connections
-- [ ] Transaction support - BEGIN/COMMIT/ROLLBACK
-- [ ] Multiple backends - SQLite, PostgreSQL, MySQL
-
----
-
-## rag-cli
-
-Terminal-based RAG application with MCP integration.
-
-> **Note**: `rag-cli` is a git submodule. Clone with `--recursive` or run `git submodule update --init --recursive` after cloning.
-
-### Core Features
-
-- [x] TUI - Terminal UI with `ratatui` + `crossterm`
-- [x] Semantic search - Vector similarity search over codebase
-- [x] Streaming chat - Real-time AI responses
-- [x] MCP integration - Tool calling via `mcp-client`
-- [x] Embeddings - Local embeddings via Ollama
-- [x] Session history - Persist conversation across runs
+- [x] Status bar - Model, profile, tool count
+- [x] Chat panel - Messages with color-coded senders
+- [x] Input bar - Type messages or commands
+- [x] Keyboard input - Enter, Backspace, Char
+- [ ] Mouse support - Click to focus panels
+- [ ] Scroll - Navigate chat history
+- [ ] Resize - Handle terminal resize
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `rag-cli chat --path ./project` | Start interactive chat session |
-| `rag-cli search --path ./project "query"` | Semantic search |
-| `rag-cli index --path ./project` | Build/update embeddings index |
+| Command | Status | Description |
+|---------|--------|-------------|
+| `/help` | Done | Show available commands |
+| `/profile <name>` | Done | Load profile (coding, personal, devops, data) |
+| `/model <name>` | Done | Switch LLM model |
+| `/tools` | Done | List loaded tools |
+| `/clear` | Done | Clear chat history |
+| `/quit` | Done | Exit CLI |
 
-### Planned Features
+### Future Features
 
-- [ ] Multi-project support - Index multiple codebases
-- [ ] File watching - Auto-reindex on file changes
-- [ ] Export conversations - Markdown/JSON export
-- [ ] Custom prompts - User-defined system prompts
-- [ ] Keyboard shortcuts - Configurable keybindings
+- [ ] Streaming responses - Real-time AI output
+- [ ] Tool call panel - Dedicated panel for tool execution
+- [ ] Syntax highlighting - Code blocks in messages
+- [ ] Conversation export - Save chat to file
 - [ ] Theme support - Custom color schemes
+
+---
+
+## Tools
+
+All MCP tools are located under `crates/mcp-tools/`. Each tool crate is a standalone binary.
+
+### tool-weather
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `get_weather` | Done | Get current weather for a city via `wttr.in` |
+
+### tool-filesystem
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `read_file` | Done | Read file contents |
+| `write_file` | Done | Write content to file |
+| `list_directory` | Done | List directory contents |
+| `search_files` | Done | Search for files matching a regex pattern |
+| `create_directory` | Planned | Create directory recursively |
+| `delete_file` | Planned | Delete a file |
+| `move_file` | Planned | Move/rename a file |
+| `copy_file` | Planned | Copy a file |
+| `get_file_info` | Planned | Get file metadata (size, modified time) |
+
+### tool-system
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `get_ram_usage` | Done | RAM usage stats via `sysinfo` |
+| `get_cpu_usage` | Done | CPU usage per core |
+| `get_disk_usage` | Done | Disk space usage |
+| `get_processes` | Done | Top processes by CPU |
+| `get_network_stats` | Planned | Network I/O statistics |
+| `kill_process` | Planned | Terminate a process by PID |
+| `get_environment` | Planned | Environment variables |
+
+### tool-web
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `http_get` | Done | GET request |
+| `http_post` | Done | POST request with JSON body |
+| `http_put` | Planned | PUT request |
+| `http_delete` | Planned | DELETE request |
+| `http_request` | Planned | Generic HTTP request with custom headers |
+| Rate limiting | Planned | Prevent abuse |
+| Timeout configuration | Planned | Configurable timeouts |
+
+### tool-utilities
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `calculate` | Done | Evaluate mathematical expressions |
+| `format_json` | Done | Parse and pretty-print JSON |
+| `current_time` | Done | Get current date and time |
+
+### Planned Tools
+
+| Crate | Tools |
+|-------|-------|
+| `tool-github` | list_repos, get_repo, list_issues, create_issue, search_code, list_pull_requests, create_pull_request, get_file_contents |
+| `tool-docker` | list_containers, get_container, container_logs, exec_container, start_container, stop_container, list_images, build_image |
+| `tool-database` | query, list_tables, describe_table |
 
 ---
 
