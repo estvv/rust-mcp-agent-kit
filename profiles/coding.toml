@@ -1,0 +1,8 @@
+[profile]
+name = "coding"
+description = "Tools for coding assistance - read/write files, search, web access"
+
+[tools]
+tool-filesystem = { enabled = true }
+tool-web = { enabled = true }
+tool-utilities = { enabled = true }
