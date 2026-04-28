@@ -97,7 +97,7 @@
 ┌───────────────────────────────────────────────────┐
 │                                                   │
 │                 mcp-agent-cli                     │
-│                 (Interactive TUI)                │
+│                 (Interactive TUI)                 │
 │                                                   │
 │  Commands: /help /profile /model /tools /clear    │
 │                                                   │
@@ -109,7 +109,7 @@
 │                   mcp-client                      │
 │                 (Orchestrator)                    │
 │                                                   │
-│  Profile → Spawn tools → Chat → Execute tools    │
+│   Profile → Spawn tools → Chat → Execute tools    │
 │                                                   │
 └──────────┬─────────────────────┬──────────────────┘
            │                     │
