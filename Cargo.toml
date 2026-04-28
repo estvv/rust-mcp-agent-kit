@@ -3,5 +3,10 @@ resolver = "2"
 members = [
     "crates/mcp-core",
     "crates/mcp-client",
-    "crates/mcp-servers/mcp-weather",
+    "crates/mcp-agent-cli",
+    "crates/mcp-tools/tool-weather",
+    "crates/mcp-tools/tool-filesystem",
+    "crates/mcp-tools/tool-system",
+    "crates/mcp-tools/tool-web",
+    "crates/mcp-tools/tool-utilities",
 ]
