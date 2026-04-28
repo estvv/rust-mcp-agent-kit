@@ -1,0 +1,17 @@
+[package]
+name = "mcp-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+minreq = { version = "2.12", features = ["https"] }
+
+[[example]]
+name = "test_weather"
+path = "examples/test_weather.rs"
+
+[[example]]
+name = "test_mock"
+path = "examples/test_mock.rs"

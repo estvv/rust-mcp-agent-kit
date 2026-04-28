@@ -1,0 +1,10 @@
+[package]
+name = "mcp-weather"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mcp-core = { path = "../../mcp-core" }
+minreq = { version = "2.12", features = ["https"] }
+serde_json = "1.0"
+inventory = "0.3"

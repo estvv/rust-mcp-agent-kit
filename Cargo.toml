@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mcp-core",
+    "crates/mcp-client",
+    "crates/mcp-servers/mcp-weather",
+]
