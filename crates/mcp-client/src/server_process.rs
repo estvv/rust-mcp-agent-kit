@@ -11,17 +11,34 @@ pub struct ServerProcess {
 
 impl ServerProcess {
     pub fn spawn(name: &str, cmd: &str) -> Result<Self, String> {
-        let child = Command::new(cmd)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn '{}': {}", cmd, e))?;
+        let child = Self::try_spawn(cmd)?;
 
         Ok(Self {
             name: name.to_string(),
             child,
             next_id: 1,
         })
+    }
+
+    fn try_spawn(cmd: &str) -> Result<Child, String> {
+        if let Ok(child) = Command::new(cmd)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            return Ok(child);
+        }
+
+        let relative = format!("target/release/{}", cmd);
+        if let Ok(child) = Command::new(&relative)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            return Ok(child);
+        }
+
+        Err(format!("Failed to spawn '{}' (tried PATH and target/release/)", cmd))
     }
 
     pub fn name(&self) -> &str {

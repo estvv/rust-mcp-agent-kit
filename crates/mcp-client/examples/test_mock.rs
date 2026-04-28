@@ -3,7 +3,7 @@
 use mcp_client::{ChatClient, Message, MockProvider, ServerProcess, ToolDefinition};
 
 fn main() {
-    let mut server = match ServerProcess::spawn("weather", "target/debug/mcp-weather") {
+    let mut server = match ServerProcess::spawn("weather", "target/debug/tool-weather") {
         Ok(s) => s,
         Err(e) => {
             eprintln!("Failed to spawn server: {}", e);

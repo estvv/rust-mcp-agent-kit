@@ -1,9 +1,10 @@
 // src/providers/mod.rs
 
 mod ollama;
-mod openai;
-mod mock;
+
+pub mod __mock__ {
+    pub mod mock;
+}
 
 pub use ollama::OllamaProvider;
-pub use openai::OpenAIProvider;
-pub use mock::MockProvider;
+pub use __mock__::mock::MockProvider;
