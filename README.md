@@ -10,8 +10,8 @@ This project provides the infrastructure to build your own AI agent (like openco
 - A **toolkit for building AI agents** that can read/write files, run commands, query APIs
 - A **client library** (`mcp-client`) that orchestrates LLMs and MCP tool servers
 - A **CLI** (`mcp-agent-cli`) for interactive AI chat with tools
-- A **collection of tools** (`mcp-tools/`) organized into profiles
-- **Modular profiles** (`profiles/`) that define which tools an agent can use
+- A **collection of tools** (`mcp-tools/`) organized into skills
+- **Modular skills** (`skills/`) that define which tools an agent can use
 - **Local-first**: Works with Ollama, but supports any LLM (OpenAI, Anthropic, etc.)
 
 ## What this project is NOT
@@ -44,7 +44,7 @@ This project provides the infrastructure to build your own AI agent (like openco
           │                       mcp-agent-cli (TUI)                          │
           │                                                                    │
           │    ┌──────────────────────────────────────────────────────────┐    │
-          │    │  STATUS BAR: Model: glm-5:cloud | Profile: coding | 3t   │    │
+          │    │  STATUS BAR: Model: glm-5:cloud | Skill: coding | 3t     │    │
           │    └──────────────────────────────────────────────────────────┘    │
           │    ┌──────────────────────────────────────────────────────────┐    │
           │    │                                                          │    │
@@ -59,8 +59,6 @@ This project provides the infrastructure to build your own AI agent (like openco
           │    ┌──────────────────────────────────────────────────────────┐    │
           │    │  > _                                                     │    │
           │    └──────────────────────────────────────────────────────────┘    │
-          │                                                                    │
-          │    Commands: /help  /profile <name>  /model <name>  /tools  /quit  │
           │                                                                    │
           └──────────────────────────────────┬─────────────────────────────────┘
                                              │
@@ -81,7 +79,7 @@ This project provides the infrastructure to build your own AI agent (like openco
           │    ┌─────────────────────────────────────────────────────────┐    │
           │    │                    Tool Management                      │    │
           │    │                                                         │    │
-          │    │  1. Load profile → spawn tool servers                   │    │
+          │    │  1. Load skill → spawn tool servers                     │    │
           │    │  2. Collect tool definitions                            │    │
           │    │  3. Send tools to LLM                                   │    │
           │    │  4. Execute tool calls → return results                 │    │
@@ -122,7 +120,7 @@ rust-mcp-agent-kit/
 │       ├── tool-system/                 # get_ram_usage, get_cpu_usage, get_disk_usage, get_processes
 │       ├── tool-web/                    # http_get, http_post
 │       └── tool-utilities/              # calculate, format_json, current_time
-└── profiles/                            # Tool profiles (config files)
+└── skills/                             # Tool skills (config files)
     ├── coding.toml                      # Tools for coding assistance
     ├── personal.toml                    # Personal assistant tools
     ├── devops.toml                      # DevOps tools
@@ -180,24 +178,24 @@ All tools are located under `crates/mcp-tools/`. Each tool crate is a standalone
 | `format_json` | Parse and pretty-print JSON |
 | `current_time` | Get current date and time |
 
-## Profiles
+## Skills
 
-Profiles define which tools are available to an agent. Each profile is a TOML config file.
+Skills define which tools are available to an agent. Each skill is a TOML config file.
 
-| Profile | Description | Tools |
-|---------|-------------|-------|
+| Skill | Description | Tools |
+|-------|-------------|-------|
 | `coding` | Coding assistance | filesystem, web, utilities |
 | `personal` | Personal assistant | weather, utilities |
 | `devops` | DevOps operations | system, web, utilities |
 | `data` | Data processing | utilities, filesystem |
 
-### Profile Structure
+### Skill Structure
 
 ```toml
-# profiles/coding.toml
-[profile]
+# skills/coding.toml
+[skill]
 name = "coding"
-description = "Tools for coding assistance"
+description = "Skill for coding assistance with file operations and web access."
 
 [tools]
 tool-filesystem = { enabled = true }
@@ -205,13 +203,13 @@ tool-web = { enabled = true }
 tool-utilities = { enabled = true }
 ```
 
-### How Profiles Work
+### How Skills Work
 
 ```
-User: /profile coding
+User: /skill coding
 
 mcp-client:
-  1. Read profiles/coding.toml
+  1. Read skills/coding.toml
   2. Identify enabled tools
   3. Spawn tool-filesystem, tool-web, tool-utilities processes
   4. Collect tool definitions from each
@@ -221,8 +219,8 @@ mcp-client:
 
 ### Behavior Change
 
-| Profile | Tools Available | LLM Behavior |
-|---------|-----------------|--------------|
+| Skill | Tools Available | LLM Behavior |
+|-------|-----------------|--------------|
 | `coding` | read/write files, web | "I can edit code, fetch docs" |
 | `personal` | weather, calculate, time | "I can answer questions, check weather" |
 | `devops` | system stats, web | "I can monitor infrastructure" |
@@ -233,7 +231,7 @@ Interactive terminal UI for AI chat with MCP tools.
 
 ### Features
 
-- **Status bar**: Shows model, profile, tool count
+- **Status bar**: Shows model, skill, tool count
 - **Chat panel**: Messages with color-coded senders
 - **Input bar**: Type messages or commands
 - **Tool call display**: Shows tool calls and results inline
@@ -243,7 +241,7 @@ Interactive terminal UI for AI chat with MCP tools.
 | Command | Description |
 |---------|-------------|
 | `/help` | Show available commands |
-| `/profile <name>` | Load profile (coding, personal, devops, data) |
+| `/skill <name>` | Load skill (coding, personal, devops, data) |
 | `/model <name>` | Switch LLM model |
 | `/tools` | List loaded tools |
 | `/clear` | Clear chat history |
@@ -255,34 +253,40 @@ Interactive terminal UI for AI chat with MCP tools.
 # Build all
 cargo build --release
 
-# Run CLI
+# Run CLI with defaults (coding skill, glm-5:cloud model)
 ./target/release/mcp-agent-cli
 
+# Run with specific skill and model
+./target/release/mcp-agent-cli --skill personal --model glm-4
+
+# Short flags
+./target/release/mcp-agent-cli -s devops -m llama3.1
+
 # Inside CLI:
-/profile coding
+/skill coding
 What files are in this directory?
 > [Tool: list_directory] → [Result: Cargo.toml, src/, ...]
 
 /model glm-4
-/profile personal
+/skill personal
 What's the weather in Tokyo?
 > [Tool: get_weather] → [Result: Rainy, 15°C]
 ```
 
 ## Key Design Decisions
 
-### Tools in `mcp-tools/`, Profiles as Config
+### Tools in `mcp-tools/`, Skills as Config
 
 - **Tools** = Rust code implementing the `Tool` trait
-- **Profiles** = TOML config files defining which tools to use
-- **Separation** = Logic lives in tools, profiles are just configuration
+- **Skills** = TOML config files defining which tools to use
+- **Separation** = Logic lives in tools, skills are just configuration
 
-### Profile-based Tool Selection
+### Skill-based Tool Selection
 
-- Each profile enables specific tools
+- Each skill enables specific tools
 - LLM adapts behavior based on available tools
-- User explicitly chooses profile: `/profile coding`
-- Different profiles = different agent "modes"
+- User explicitly chooses skill: `/skill coding`
+- Different skills = different agent "modes"
 
 ### Microservices Architecture
 
@@ -318,7 +322,7 @@ cargo build --release
 ./target/release/mcp-agent-cli
 
 # Inside CLI:
-/profile coding
+/skill coding
 Hello, what can you do?
 ```
 
@@ -341,18 +345,18 @@ cargo run --example test_multi_turn_real
 ## Using mcp-client Programmatically
 
 ```rust
-use mcp_client::{Orchestrator, OllamaProvider, Profile};
+use mcp_client::{Orchestrator, OllamaProvider, Skill};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load profile
-    let profile = Profile::load_by_name("coding")?;
+    // Load skill
+    let skill = Skill::load_by_name("coding")?;
 
     // Create provider and orchestrator
     let provider = OllamaProvider::new("http://localhost:11434", "glm-5:cloud");
     let mut orch = Orchestrator::new(provider);
 
-    // Spawn tools from profile
-    for tool in profile.enabled_tools() {
+    // Spawn tools from skill
+    for tool in skill.enabled_tools() {
         orch.spawn_tool(tool, tool)?;
     }
 
@@ -441,7 +445,7 @@ cargo clippy --workspace -- -D warnings
 
 - [docs/ROADMAP.md](./docs/ROADMAP.md) - Development roadmap
 - [docs/FEATURES.md](./docs/FEATURES.md) - Feature reference
-- [profiles/README.md](./profiles/README.md) - Profile documentation
+- [skills/README.md](./skills/README.md) - Skill documentation
 
 ## License
 
