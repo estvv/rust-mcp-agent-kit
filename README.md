@@ -255,6 +255,7 @@ Interactive terminal UI for AI chat with MCP tools.
 | `/skill <name>` | Load skill (coding, personal, devops, data) |
 | `/model <name>` | Switch LLM model |
 | `/tools` | List loaded tools |
+| `/mode` | Toggle Plan/Build mode |
 | `/clear` | Clear chat history |
 | `/quit` | Exit CLI |
 
@@ -345,12 +346,6 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | target/relea
 
 # Call a tool
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_weather","arguments":{"city":"Paris"}}}' | target/release/tool-weather
-
-# Run mock test (no LLM needed)
-cargo run --example test_mock
-
-# Run with Ollama (requires ollama serve + model)
-cargo run --example test_multi_turn_real
 ```
 
 ## Using mcp-client Programmatically
