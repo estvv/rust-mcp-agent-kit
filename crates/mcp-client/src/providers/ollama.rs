@@ -61,7 +61,8 @@ impl OllamaProvider {
             .map_err(|e| format!("Request failed: {}", e))?;
 
         if response.status_code != 200 {
-            return Err(format!("Ollama returned status {}", response.status_code));
+            let body = response.as_str().unwrap_or("");
+            return Err(format!("Ollama returned status {}: {}", response.status_code, body));
         }
 
         let body = response.as_str().map_err(|e| format!("Failed to read response: {}", e))?;

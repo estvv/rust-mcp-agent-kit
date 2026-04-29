@@ -7,23 +7,23 @@
 // 4. Result is sent back to LLM
 // 5. LLM returns final answer
 
-use mcp_client::{Orchestrator, MockProvider, Profile, ChatClient, Message, ToolDefinition};
+use mcp_client::{Orchestrator, MockProvider, Skill, ChatClient, Message, ToolDefinition};
 
 fn main() {
     println!("=== Multi-turn Conversation Test ===\n");
 
-    // Load profile
-    let profile = Profile::load("profiles/personal.toml")
-        .expect("Failed to load profile. Run from workspace root.");
+    // Load skill
+    let skill = Skill::load("skills/personal.toml")
+        .expect("Failed to load skill. Run from workspace root.");
     
-    println!("Profile: {} ({})", profile.name(), profile.description());
+    println!("Skill: {} ({})", skill.name(), skill.description());
 
     // Spawn tools
     let mut orchestrator: Orchestrator<MockProvider> = Orchestrator::new(
         MockProvider::new("The weather data shows Paris at 15°C.")
     );
     
-    for tool_name in profile.enabled_tools() {
+    for tool_name in skill.enabled_tools() {
         let binary = format!("target/debug/{}", tool_name);
         orchestrator.spawn_tool(&tool_name, &binary).unwrap();
     }

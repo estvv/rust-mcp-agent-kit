@@ -1,39 +1,39 @@
 // examples/test_orchestrator.rs
 //
 // Demonstrates:
-// 1. Loading a profile from TOML
-// 2. Spawning tools from profile
+// 1. Loading a skill from TOML
+// 2. Spawning tools from skill
 // 3. Multi-turn conversation loop with tool calling
 
-use mcp_client::{Orchestrator, MockProvider, Profile};
+use mcp_client::{Orchestrator, MockProvider, Skill};
 
 fn main() {
     println!("=== MCP Orchestrator Test ===\n");
 
-    // 1. Load profile by name (looks in profiles/{name}.toml)
-    let profile_name = "personal";
-    println!("Loading profile: {}", profile_name);
+    // 1. Load skill by name (looks in skills/{name}.toml)
+    let skill_name = "personal";
+    println!("Loading skill: {}", skill_name);
     
-    let profile = match Profile::load_by_name(profile_name) {
-        Ok(p) => p,
+    let skill = match Skill::load_by_name(skill_name) {
+        Ok(s) => s,
         Err(e) => {
-            eprintln!("Failed to load profile: {}", e);
+            eprintln!("Failed to load skill: {}", e);
             eprintln!("Note: Run this example from the workspace root directory");
             std::process::exit(1);
         }
     };
     
-    println!("Profile: {} - {}", profile.name(), profile.description());
-    println!("Enabled tools: {:?}\n", profile.enabled_tools());
+    println!("Skill: {} - {}", skill.name(), skill.description());
+    println!("Enabled tools: {:?}\n", skill.enabled_tools());
 
     // 2. Create orchestrator with mock provider (no LLM needed)
     // Mock will request tool call first, then return response
     let client = MockProvider::new("Based on the weather data, Paris is 15°C and partly cloudy.");
     let mut orchestrator = Orchestrator::new(client);
 
-    // 3. Spawn tools from profile
+    // 3. Spawn tools from skill
     println!("Spawning tools...");
-    for tool_name in profile.enabled_tools() {
+    for tool_name in skill.enabled_tools() {
         let binary = format!("target/debug/{}", tool_name);
         println!("  Spawning: {} ({})", tool_name, binary);
         
