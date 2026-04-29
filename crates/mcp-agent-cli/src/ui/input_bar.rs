@@ -1,3 +1,5 @@
+// src/ui/input_bar.rs
+
 use crate::state::{App, Mode};
 use ratatui::{
     layout::Rect,
@@ -25,7 +27,7 @@ pub fn render_input_bar(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let mode_span = Span::styled(format!(" {} ", mode_text), Style::default().fg(mode_color).add_modifier(Modifier::BOLD));
-    
+
     let input_block = Block::default()
         .borders(Borders::ALL)
         .title(mode_span)
@@ -38,7 +40,7 @@ pub fn render_input_bar(f: &mut Frame, app: &App, area: Rect) {
         let visible_count = suggestions.len().min(MAX_VISIBLE_SUGGESTIONS);
         let dropdown_height = (visible_count + 2) as u16;
         let available_space = area.y;
-        
+
         if available_space >= dropdown_height {
             let dropdown_area = Rect {
                 x: area.x + 1,
@@ -59,7 +61,7 @@ pub fn get_suggestions(input: &str) -> Vec<&'static str> {
     if !input.starts_with('/') || input.contains(' ') {
         return vec![];
     }
-    
+
     let cmds = ["/help", "/skill", "/model", "/tools", "/mode", "/clear", "/quit"];
     cmds.iter()
         .filter(|c| c.starts_with(input))
@@ -77,16 +79,16 @@ fn render_suggestions_dropdown(f: &mut Frame, suggestions: &[&str], current_inpu
     }
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    
+
     let visible_suggestions: Vec<_> = suggestions.iter()
         .skip(scroll)
         .take(MAX_VISIBLE_SUGGESTIONS)
         .collect();
-    
+
     for (idx, suggestion) in visible_suggestions.iter().enumerate() {
         let actual_idx = scroll + idx;
         let is_selected = actual_idx == selected_idx;
-        
+
         if is_selected {
             lines.push(Line::from(vec![
                 Span::styled("> ", Style::default().fg(Color::Cyan)),
@@ -94,7 +96,7 @@ fn render_suggestions_dropdown(f: &mut Frame, suggestions: &[&str], current_inpu
             ]));
         } else {
             let input_len = current_input.len();
-            
+
             if suggestion.starts_with(current_input) && input_len > 0 {
                 let rest = suggestion[input_len..].to_string();
                 lines.push(Line::from(vec![
@@ -117,7 +119,7 @@ fn render_suggestions_dropdown(f: &mut Frame, suggestions: &[&str], current_inpu
         .style(Style::default().bg(Color::Reset)); // Solid background
 
     let paragraph = Paragraph::new(lines).block(block);
-    
+
     f.render_widget(Clear, area); // Clear the area first
     f.render_widget(paragraph, area);
 }

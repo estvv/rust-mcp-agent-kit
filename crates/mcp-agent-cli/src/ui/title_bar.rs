@@ -1,3 +1,5 @@
+// src/ui/title_bar.rs
+
 use crate::state::{App, Mode};
 use ratatui::{
     layout::Rect,

@@ -1,3 +1,5 @@
+// src/ui/status_bar.rs
+
 use crate::state::App;
 use ratatui::{
     layout::Rect,
@@ -9,7 +11,7 @@ use ratatui::{
 
 pub fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
     let skill_name = app.skill_name();
-    
+
     let status_color = if app.status.contains("Thinking") || app.streaming {
         Color::Yellow
     } else if app.status.contains("Error") || app.status.contains("Failed") {

@@ -236,6 +236,17 @@ Interactive terminal UI for AI chat with MCP tools.
 - **Input bar**: Type messages or commands
 - **Tool call display**: Shows tool calls and results inline
 
+### Screenshots
+
+#### Chat Interface using coding skill
+![Chat with tool calls](examples/screen_1.png)
+
+#### Skill Selection
+![Skill selection popup](examples/screen_2.png)
+
+#### Chat Interface using personal skill
+![Model selection popup](examples/screen_3.png)
+
 ### Commands
 
 | Command | Description |

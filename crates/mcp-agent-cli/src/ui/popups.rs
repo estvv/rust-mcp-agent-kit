@@ -1,3 +1,5 @@
+// src/ui/popups.rs
+
 use crate::state::App;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -26,22 +28,22 @@ pub fn render_popup(f: &mut Frame, app: &App, popup_type: PopupType) {
 
 fn render_model_selector(f: &mut Frame, app: &App) {
     let popup_area = centered_rect(40, 60, f.area());
-    
+
     let filtered_models: Vec<_> = app.available_models
         .iter()
         .filter(|m| app.popup_filter.is_empty() || m.to_lowercase().contains(&app.popup_filter.to_lowercase()))
         .collect();
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    
+
     lines.push(Line::from(vec![
         Span::styled(" Select Model", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
     ]));
-    
+
     for (idx, model) in filtered_models.iter().enumerate() {
         let is_current = *model == &app.model;
         let is_selected = idx == app.popup_selection.min(filtered_models.len().saturating_sub(1));
-        
+
         let prefix = if is_current { "* " } else { "  " };
         let style = if is_selected {
             Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
@@ -50,7 +52,7 @@ fn render_model_selector(f: &mut Frame, app: &App) {
         } else {
             Style::default().fg(Color::White)
         };
-        
+
         lines.push(Line::from(vec![
             Span::styled(format!("{}{}", prefix, model), style),
         ]));
@@ -71,7 +73,7 @@ fn render_model_selector(f: &mut Frame, app: &App) {
 
 fn render_skill_selector(f: &mut Frame, app: &App) {
     let popup_area = centered_rect(50, 70, f.area());
-    
+
     let filtered_skills: Vec<_> = app.available_skills
         .iter()
         .filter(|s| app.popup_filter.is_empty() || s.name.to_lowercase().contains(&app.popup_filter.to_lowercase()))
@@ -81,16 +83,16 @@ fn render_skill_selector(f: &mut Frame, app: &App) {
     let selected_skill = filtered_skills.get(selected_idx);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    
+
     lines.push(Line::from(vec![
         Span::styled(" Select Skill", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
     ]));
     lines.push(Line::from(""));
-    
+
     for (idx, skill) in filtered_skills.iter().enumerate() {
         let is_current = app.skill.as_ref().map(|s| s.name.as_str()) == Some(skill.name.as_str());
         let is_selected = idx == selected_idx;
-        
+
         let prefix = if is_current { "* " } else { "  " };
         let style = if is_selected {
             Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
@@ -99,12 +101,12 @@ fn render_skill_selector(f: &mut Frame, app: &App) {
         } else {
             Style::default().fg(Color::White)
         };
-        
+
         lines.push(Line::from(vec![
             Span::styled(format!("{}{} ({} tools)", prefix, skill.name, skill.tool_count), style),
         ]));
     }
-    
+
     // Show tools for selected skill
     if let Some(skill) = selected_skill {
         lines.push(Line::from(""));
@@ -133,7 +135,7 @@ fn render_skill_selector(f: &mut Frame, app: &App) {
 
 fn render_command_palette(f: &mut Frame, app: &App) {
     let popup_area = centered_rect(50, 70, f.area());
-    
+
     let commands = [
         ("/help", "Show available commands"),
         ("/skill", "Load tool skill"),
@@ -150,20 +152,20 @@ fn render_command_palette(f: &mut Frame, app: &App) {
         .collect();
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    
+
     lines.push(Line::from(vec![
         Span::styled(" Command Palette", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
     ]));
-    
+
     for (idx, (cmd, desc)) in filtered_commands.iter().enumerate() {
         let is_selected = idx == app.popup_selection.min(filtered_commands.len().saturating_sub(1));
-        
+
         let style = if is_selected {
             Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
         };
-        
+
         lines.push(Line::from(vec![
             Span::styled(format!("{:<12} {}", cmd, desc), style),
         ]));
@@ -184,7 +186,7 @@ fn render_command_palette(f: &mut Frame, app: &App) {
 
 fn render_help(f: &mut Frame, _app: &App) {
     let popup_area = centered_rect(60, 80, f.area());
-    
+
     let lines: Vec<Line<'static>> = vec![
         Line::from(vec![
             Span::styled(" Help", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),

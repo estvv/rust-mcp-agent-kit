@@ -1,3 +1,5 @@
+// src/ui/sidebar.rs
+
 use crate::state::{App, FileStatus};
 use ratatui::{
     layout::Rect,
@@ -71,7 +73,7 @@ pub fn render_sidebar(f: &mut Frame, app: &App, area: Rect) {
 
     if !app.files_collapsed {
         lines.push(Line::from(""));
-        
+
         for file in &app.files {
             let status_span = match file.status {
                 FileStatus::Read => Span::styled(" [read]", Style::default().fg(Color::Blue)),

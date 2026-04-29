@@ -1,4 +1,4 @@
-
+// src/state.rs
 
 use mcp_client::Skill;
 
@@ -105,18 +105,9 @@ pub struct App {
     pub browsing_history: bool,
 }
 
-#[allow(dead_code)]
 impl App {
-    pub fn new() -> Self {
-        Self::with_skill_and_model("coding", "glm-5:cloud")
-    }
-
-    pub fn with_skill(name: &str) -> Self {
-        Self::with_skill_and_model(name, "glm-5:cloud")
-    }
-
     pub fn with_skill_and_model(skill_name: &str, model: &str) -> Self {
-        let mut app = Self {
+        let mut app = App {
             input: String::new(),
             input_history: Vec::new(),
             history_index: 0,
@@ -142,15 +133,7 @@ impl App {
             streaming_reasoning: None,
             spinner_frame: 0,
             conversation_history: vec![],
-            available_models: vec![
-                "glm-5:cloud".to_string(),
-                "llama3:latest".to_string(),
-                "mistral:latest".to_string(),
-                "gemma4:latest".to_string(),
-                "phi3:3.8b".to_string(),
-                "qwen3.5:latest".to_string(),
-                "qwen2.5-coder:latest".to_string(),
-            ],
+            available_models: load_available_models(),
             available_skills: Self::load_available_skills(),
             version: "0.1.0".to_string(),
             conversation_name: "Untitled".to_string(),
@@ -160,21 +143,17 @@ impl App {
             show_suggestions: false,
             browsing_history: false,
         };
-        
+
         if let Err(e) = app.load_skill(skill_name) {
             app.messages.push(Message {
                 sender: "Error".to_string(),
                 content: MessageContent::Text(format!("Failed to load skill '{}': {}", skill_name, e)),
             });
         }
-        
+
         app
     }
 
-    pub fn version(&self) -> &str {
-        &self.version
-    }
-    
     fn load_available_skills() -> Vec<SkillInfo> {
         let skill_names = ["coding", "personal", "devops", "data"];
         skill_names
@@ -194,27 +173,21 @@ impl App {
 
     pub fn load_skill(&mut self, name: &str) -> Result<(), String> {
         let skill = Skill::load_by_name(name)?;
-        let tools: Vec<String> = skill.enabled_tools();
+        let tools = skill.enabled_tools();
         let tool_count = tools.len();
-        
+
         self.skill = Some(SkillInfo {
             name: name.to_string(),
             tool_count,
-            tools: tools.clone(),
+            tools,
         });
-        self.status = "Ready".to_string();
-        self.files.clear();
-        
+
         self.messages.push(Message {
             sender: "System".to_string(),
             content: MessageContent::Text(format!("Loaded skill '{}' with {} tools", name, tool_count)),
         });
-        
-        Ok(())
-    }
 
-    pub fn set_skill(&mut self, name: &str) -> Result<(), String> {
-        self.load_skill(name)
+        Ok(())
     }
 
     pub fn toggle_mode(&mut self) {
@@ -235,7 +208,6 @@ impl App {
     }
 
     pub fn scroll_up(&mut self) {
-        // When user scrolls up, disable auto-follow
         self.follow_bottom = false;
         if self.scroll_offset > 3 {
             self.scroll_offset -= 3;
@@ -259,35 +231,16 @@ impl App {
         self.scroll_offset = usize::MAX;
     }
 
-    pub fn count_message_lines(&self) -> usize {
-        self.messages.iter().map(|m| match &m.content {
-            MessageContent::Text(t) => t.lines().count() + 2,
-            MessageContent::Reasoning(t) => t.lines().count() + 2,
-            MessageContent::Tools(tools) => {
-                let mut lines = 2;
-                for tool in tools {
-                    if tool.expanded {
-                        lines += 5 + tool.arguments.lines().count();
-                        if let Some(ref result) = tool.result {
-                            lines += 1 + result.lines().count();
-                        }
-                    } else {
-                        lines += 2;
-                    }
-                }
-                lines
-            }
-        }).sum()
-    }
-
     pub fn input_history_prev(&mut self) {
-        if !self.input_history.is_empty() {
-            if !self.browsing_history {
-                self.browsing_history = true;
-                self.history_index = self.input_history.len();
+        if !self.input_history.is_empty() && !self.browsing_history {
+            self.browsing_history = true;
+            self.history_index = self.input_history.len().saturating_sub(1);
+            if !self.input_history.is_empty() {
+                self.input = self.input_history[self.history_index].clone();
             }
-            if self.history_index > 0 {
-                self.history_index -= 1;
+        } else if self.browsing_history && self.history_index > 0 {
+            self.history_index -= 1;
+            if !self.input_history.is_empty() {
                 self.input = self.input_history[self.history_index].clone();
             }
         }
@@ -306,6 +259,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn toggle_tool_expansion(&mut self, message_idx: usize, tool_idx: usize) {
         if let Some(Message { content: MessageContent::Tools(tools), .. }) = self.messages.get_mut(message_idx) {
             if let Some(tool) = tools.get_mut(tool_idx) {
@@ -314,6 +268,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn add_file(&mut self, path: String, status: FileStatus) {
         if let Some(file) = self.files.iter_mut().find(|f| f.path == path) {
             file.status = status;
@@ -347,7 +302,27 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn toggle_files_collapsed(&mut self) {
         self.files_collapsed = !self.files_collapsed;
     }
+
+    #[allow(dead_code)]
+    pub fn increment_tokens(&mut self, amount: u64) {
+        self.tokens_used += amount;
+    }
+}
+
+fn load_available_models() -> Vec<String> {
+    // Try to fetch models from Ollama API, fall back to defaults
+    // For now, use defaults. In future, this could call ollama list endpoint
+    vec![
+        "glm-5:cloud".to_string(),
+        "llama3:latest".to_string(),
+        "mistral:latest".to_string(),
+        "gemma4:latest".to_string(),
+        "phi3:3.8b".to_string(),
+        "qwen3.5:latest".to_string(),
+        "qwen2.5-coder:latest".to_string(),
+    ]
 }

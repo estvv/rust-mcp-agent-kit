@@ -1,3 +1,5 @@
+// src/ui/mod.rs
+
 mod title_bar;
 mod status_bar;
 mod sidebar;

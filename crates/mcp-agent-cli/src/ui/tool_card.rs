@@ -1,3 +1,5 @@
+// src/ui/tool_card.rs
+
 use crate::state::ToolCall;
 use ratatui::{
     layout::Rect,
@@ -10,7 +12,7 @@ use ratatui::{
 #[allow(dead_code)]
 pub fn render_tool_card(f: &mut Frame, tool: &ToolCall, area: Rect) {
     let mut lines: Vec<Line<'static>> = Vec::new();
-    
+
     let status_icon = if tool.is_error {
         "[X]"
     } else if tool.result.is_some() {
@@ -18,9 +20,9 @@ pub fn render_tool_card(f: &mut Frame, tool: &ToolCall, area: Rect) {
     } else {
         "..."
     };
-    
+
     let expand_icon = if tool.expanded { "[v]" } else { "[>]" };
-    
+
     let status_color = if tool.is_error {
         Color::Red
     } else if tool.result.is_some() {
@@ -45,7 +47,7 @@ pub fn render_tool_card(f: &mut Frame, tool: &ToolCall, area: Rect) {
             Span::styled("│ ", Style::default().fg(Color::DarkGray)),
             Span::styled("Parameters:", Style::default().fg(Color::Magenta)),
         ]));
-        
+
         for arg_line in tool.arguments.lines() {
             lines.push(Line::from(vec![
                 Span::raw(" "),
@@ -53,20 +55,20 @@ pub fn render_tool_card(f: &mut Frame, tool: &ToolCall, area: Rect) {
                 Span::styled(arg_line.to_string(), Style::default().fg(Color::White)),
             ]));
         }
-        
+
         lines.push(Line::from(vec![
             Span::raw(" "),
             Span::styled("│ ", Style::default().fg(Color::DarkGray)),
             Span::styled("─".repeat(20), Style::default().fg(Color::DarkGray)),
         ]));
-        
+
         if let Some(ref result) = tool.result {
             lines.push(Line::from(vec![
                 Span::raw(" "),
                 Span::styled("│ ", Style::default().fg(Color::DarkGray)),
                 Span::styled(format!("{} Result:", status_icon), Style::default().fg(status_color)),
             ]));
-            
+
             for result_line in result.lines() {
                 lines.push(Line::from(vec![
                     Span::raw(" "),
