@@ -1,6 +1,6 @@
-[profile]
+[skill]
 name = "coding"
-description = "Tools for coding assistance - read/write files, search, web access"
+description = "Skill for coding assistance with file operations and web access."
 
 [tools]
 tool-filesystem = { enabled = true }

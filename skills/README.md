@@ -1,11 +1,11 @@
-# Profiles
+# Skills
 
-Profiles define which tools are available to an agent. Each profile is a TOML file listing the tools to load.
+Skills define which tools are available to an agent. Each skill is a TOML file listing the tools to load.
 
-## Available Profiles
+## Available Skills
 
-| Profile | Description | Tools |
-|---------|-------------|-------|
+| Skill | Description | Tools |
+|-------|-------------|-------|
 | `coding` | Coding assistance | filesystem, web, utilities |
 | `personal` | Personal assistant | weather, utilities |
 | `devops` | DevOps operations | system, web, utilities |
@@ -14,7 +14,7 @@ Profiles define which tools are available to an agent. Each profile is a TOML fi
 ## Structure
 
 ```toml
-[profile]
+[skill]
 name = "coding"
 description = "Tools for coding assistance"
 
@@ -29,19 +29,19 @@ tool-utilities = { enabled = true }
 In `mcp-agent-cli`:
 
 ```
-/profile coding
+/skill coding
 /model glm-5:cloud
 Hello, what can you help me with?
 ```
 
-## Creating Custom Profiles
+## Creating Custom Skills
 
-1. Create new TOML file in `profiles/`:
+1. Create new TOML file in `skills/`:
 
 ```toml
-# profiles/my-profile.toml
-[profile]
-name = "my-profile"
+# skills/my-skill.toml
+[skill]
+name = "my-skill"
 description = "Custom tool set"
 
 [tools]
@@ -53,7 +53,7 @@ tool-filesystem = { enabled = true }
 2. Load in CLI:
 
 ```
-/profile my-profile
+/skill my-skill
 ```
 
 ## Tool Reference
@@ -66,10 +66,10 @@ tool-filesystem = { enabled = true }
 | `tool-web` | http_get, http_post |
 | `tool-utilities` | calculate, format_json, current_time |
 
-## Behavior Changes per Profile
+## Behavior Changes per Skill
 
-| Profile | Tools Available | LLM Behavior |
-|---------|-----------------|--------------|
+| Skill | Tools Available | LLM Behavior |
+|-------|-----------------|--------------|
 | `coding` | read/write files, web, calculate | "I can edit code, fetch docs, do math" |
 | `personal` | weather, calculate, time | "I can answer questions, check weather" |
 | `devops` | system stats, web, calculate | "I can monitor infrastructure, fetch APIs" |
