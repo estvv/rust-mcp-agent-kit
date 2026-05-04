@@ -1,0 +1,11 @@
+[model]
+name = "glm-5.1:cloud"
+base_url = "http://localhost:11434"
+
+[tools]
+allowed_root = "."   # Resolved to absolute path at runtime
+
+[paths]
+# Override tool binary paths if not on PATH
+# tool-shell = "/usr/local/bin/tool-shell"
+# tool-filesystem = "/usr/local/bin/tool-filesystem"
