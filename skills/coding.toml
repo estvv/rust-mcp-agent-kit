@@ -1,8 +1,0 @@
-[skill]
-name = "coding"
-description = "Skill for coding assistance with file operations and web access."
-
-[tools]
-tool-filesystem = { enabled = true }
-tool-web = { enabled = true }
-tool-utilities = { enabled = true }

@@ -56,22 +56,40 @@ impl<C: ChatClient> Orchestrator<C> {
     }
 
     fn chat_loop(&mut self, mut messages: Vec<Message>) -> Result<String, String> {
+        let mut iterations = 0;
+        let max_iterations = 50;
+
         loop {
+            if iterations >= max_iterations {
+                return Ok("Agent reached maximum tool call iterations.".to_string());
+            }
+            iterations += 1;
+
             let response = self.client.chat(messages.clone(), self.tools.clone())?;
             
             if response.tool_calls.is_empty() {
                 return Ok(response.content.unwrap_or_else(|| "No response".to_string()));
             }
+
+            if let Some(ref content) = response.content {
+                if !content.is_empty() {
+                    eprintln!("[orchestrator] assistant: {}", content);
+                }
+            }
             
             for tool_call in &response.tool_calls {
+                eprintln!("[orchestrator] calling {}({})", tool_call.name, tool_call.arguments);
+                
                 let args: serde_json::Value = serde_json::from_str(&tool_call.arguments)
                     .map_err(|e| format!("Failed to parse tool arguments: {}", e))?;
                 
                 let tool_result = self.execute_tool(&tool_call.name, args)?;
                 
+                eprintln!("[orchestrator] result: {}", if tool_result.len() > 200 { &tool_result[..200] } else { &tool_result });
+                
                 messages.push(Message {
                     role: "assistant".to_string(),
-                    content: format!("Tool call: {}({})", tool_call.name, tool_call.arguments),
+                    content: format!("{}({})", tool_call.name, tool_call.arguments),
                 });
                 
                 messages.push(Message {

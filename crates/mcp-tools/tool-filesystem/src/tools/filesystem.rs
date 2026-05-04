@@ -3,6 +3,8 @@ use serde_json::Value;
 use std::fs;
 use regex::Regex;
 
+use tool_filesystem::validation::validate_path;
+
 pub struct ReadFileTool;
 
 impl Tool for ReadFileTool {
@@ -18,8 +20,9 @@ impl Tool for ReadFileTool {
         })
     }
     fn execute(&self, args: Value) -> Result<String, ToolError> {
-        let path = args["path"].as_str().ok_or_else(|| ToolError::MissingArgument("path".into()))?;
-        fs::read_to_string(path).map_err(|e| ToolError::ExecutionError(format!("Failed to read file: {}", e)))
+        let raw_path = args["path"].as_str().ok_or_else(|| ToolError::MissingArgument("path".into()))?;
+        let path = validate_path(raw_path)?;
+        fs::read_to_string(&path).map_err(|e| ToolError::ExecutionError(format!("Failed to read file: {}", e)))
     }
 }
 
@@ -41,10 +44,15 @@ impl Tool for WriteFileTool {
         })
     }
     fn execute(&self, args: Value) -> Result<String, ToolError> {
-        let path = args["path"].as_str().ok_or_else(|| ToolError::MissingArgument("path".into()))?;
+        let raw_path = args["path"].as_str().ok_or_else(|| ToolError::MissingArgument("path".into()))?;
         let content = args["content"].as_str().ok_or_else(|| ToolError::MissingArgument("content".into()))?;
-        fs::write(path, content).map_err(|e| ToolError::ExecutionError(format!("Failed to write file: {}", e)))?;
-        Ok(format!("Successfully wrote to {}", path))
+        let path = validate_path(raw_path)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to create parent directories: {}", e)))?;
+        }
+        fs::write(&path, content).map_err(|e| ToolError::ExecutionError(format!("Failed to write file: {}", e)))?;
+        Ok(format!("Successfully wrote to {}", path.display()))
     }
 }
 
@@ -59,14 +67,15 @@ impl Tool for ListDirectoryTool {
         serde_json::json!({
             "type": "object",
             "properties": {
-                "path": { "type": "string", "description": "The path to the directory to list (default: current directory)" }
+                "path": { "type": "string", "description": "The path to the directory to list (default: allowed root)" }
             },
             "required": []
         })
     }
     fn execute(&self, args: Value) -> Result<String, ToolError> {
-        let path = args["path"].as_str().unwrap_or(".");
-        let entries: Vec<String> = fs::read_dir(path)
+        let raw_path = args["path"].as_str().unwrap_or(".");
+        let path = validate_path(raw_path)?;
+        let entries: Vec<String> = fs::read_dir(&path)
             .map_err(|e| ToolError::ExecutionError(format!("Failed to read directory: {}", e)))?
             .filter_map(|entry| entry.ok())
             .map(|entry| {
@@ -94,16 +103,17 @@ impl Tool for SearchFilesTool {
             "type": "object",
             "properties": {
                 "pattern": { "type": "string", "description": "The regex pattern to search for in file names" },
-                "directory": { "type": "string", "description": "The directory to search in (default: current directory)" }
+                "directory": { "type": "string", "description": "The directory to search in (default: allowed root)" }
             },
             "required": ["pattern"]
         })
     }
     fn execute(&self, args: Value) -> Result<String, ToolError> {
         let pattern = args["pattern"].as_str().ok_or_else(|| ToolError::MissingArgument("pattern".into()))?;
-        let directory = args["directory"].as_str().unwrap_or(".");
+        let raw_directory = args["directory"].as_str().unwrap_or(".");
+        let directory = validate_path(raw_directory)?;
         let re = Regex::new(pattern).map_err(|e| ToolError::ExecutionError(format!("Invalid regex pattern: {}", e)))?;
-        let matches: Vec<String> = fs::read_dir(directory)
+        let matches: Vec<String> = fs::read_dir(&directory)
             .map_err(|e| ToolError::ExecutionError(format!("Failed to read directory: {}", e)))?
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
@@ -120,4 +130,4 @@ impl Tool for SearchFilesTool {
     }
 }
 
-inventory::submit! { ToolEntry { tool: &SearchFilesTool } }
+inventory::submit! { ToolEntry { tool: &SearchFilesTool } } 

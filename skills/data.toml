@@ -1,7 +1,0 @@
-[skill]
-name = "data"
-description = "Data tools - utilities for data processing"
-
-[tools]
-tool-utilities = { enabled = true }
-tool-filesystem = { enabled = true }

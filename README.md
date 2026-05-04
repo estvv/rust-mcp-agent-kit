@@ -9,9 +9,10 @@ This project provides the infrastructure to build your own AI agent (like openco
 - An **MCP implementation in Rust** following the [open MCP standard](https://modelcontextprotocol.io/)
 - A **toolkit for building AI agents** that can read/write files, run commands, query APIs
 - A **client library** (`mcp-client`) that orchestrates LLMs and MCP tool servers
-- A **CLI** (`mcp-agent-cli`) for interactive AI chat with tools
+- A **headless binary** (`mcp-agent`) for running skills from the command line
+- A **TUI** (`mcp-agent-cli`) for interactive AI chat with tools
 - A **collection of tools** (`mcp-tools/`) organized into skills
-- **Modular skills** (`skills/`) that define which tools an agent can use
+- **Modular skills** (`skills/`) in Markdown + YAML frontmatter format
 - **Local-first**: Works with Ollama, but supports any LLM (OpenAI, Anthropic, etc.)
 
 ## What this project is NOT
@@ -21,358 +22,290 @@ This project provides the infrastructure to build your own AI agent (like openco
 - NOT a closed system (open standard, extensible, you own the code)
 - NOT a production-ready product (it's a learning/hobby project)
 
-## Why build this?
+## Quick Start
 
-| Reason | Benefit |
-|--------|---------|
-| **Full control** | Add any tool you want, no limitations |
-| **Privacy** | Everything can run locally (Ollama) |
-| **Learning** | Understand how AI agents work under the hood |
-| **Custom LLM** | Switch between local (free) and cloud (powerful) |
-| **Open standard** | MCP ecosystem is growing, interoperable |
+```bash
+# Clone and build
+git clone https://github.com/estvv/rust-mcp-agent-kit.git
+cd rust-mcp-agent-kit
+cargo build --release
+
+# Run a skill headlessly
+./target/release/mcp-agent coding "list the files in this directory"
+
+# Run with a state-machine skill
+./target/release/mcp-agent init-web-project "scaffold the project"
+
+# Or use the TUI
+./target/release/mcp-agent-cli
+```
 
 ## Architecture
 
 ```
-          ┌────────────────────────────────────────────────────────────────────┐
-          │                             USER INPUT                             │
-          └─────────────────────────────────┬──────────────────────────────────┘
-                                            │
-                                            ▼
-          ┌────────────────────────────────────────────────────────────────────┐
-          │                                                                    │
-          │                       mcp-agent-cli (TUI)                          │
-          │                                                                    │
-          │    ┌──────────────────────────────────────────────────────────┐    │
-          │    │  STATUS BAR: Model: glm-5:cloud | Skill: coding | 3t     │    │
-          │    └──────────────────────────────────────────────────────────┘    │
-          │    ┌──────────────────────────────────────────────────────────┐    │
-          │    │                                                          │    │
-          │    │  [User] What's the weather in Paris?                     │    │
-          │    │                                                          │    │
-          │    │  [Assistant] I'll check the weather for you.             │    │
-          │    │  [Tool: get_weather] {"city": "Paris"}                   │    │
-          │    │  [Tool Result] Sunny, 18°C                               │    │
-          │    │  [Assistant] It's sunny and 18°C in Paris right now!     │    │
-          │    │                                                          │    │
-          │    └──────────────────────────────────────────────────────────┘    │
-          │    ┌──────────────────────────────────────────────────────────┐    │
-          │    │  > _                                                     │    │
-          │    └──────────────────────────────────────────────────────────┘    │
-          │                                                                    │
-          └──────────────────────────────────┬─────────────────────────────────┘
-                                             │
-                                             ▼
-          ┌───────────────────────────────────────────────────────────────────┐
-          │                                                                   │
-          │                         mcp-client                                │
-          │                    (Orchestrator Library)                         │
-          │                                                                   │
-          │    ┌─────────────────────────────────────────────────────────┐    │
-          │    │                      LLM Providers                      │    │
-          │    │                                                         │    │
-          │    │    OllamaProvider    OpenAIProvider    MockProvider     │    │
-          │    │    (localhost:11434) (api.openai.com)  (for testing)    │    │
-          │    │                                                         │    │
-          │    └─────────────────────────────────────────────────────────┘    │
-          │                                                                   │
-          │    ┌─────────────────────────────────────────────────────────┐    │
-          │    │                    Tool Management                      │    │
-          │    │                                                         │    │
-          │    │  1. Load skill → spawn tool servers                     │    │
-          │    │  2. Collect tool definitions                            │    │
-          │    │  3. Send tools to LLM                                   │    │
-          │    │  4. Execute tool calls → return results                 │    │
-          │    │                                                         │    │
-          │    └─────────────────────────────────────────────────────────┘    │
-          │                                                                   │
-          └──────────────────────────────────┬────────────────────────────────┘
-                                             │
-              ┌───────────────────┼─────────────────────┬───────────────────┐
-              │                   │                     │                   │
-              ▼                   ▼                     ▼                   ▼
-     ┌─────────────────┐ ┌─────────────────┐   ┌─────────────────┐ ┌─────────────────┐
-     │                 │ │                 │   │                 │ │                 │
-     │  tool-weather   │ │ tool-filesystem │   │   tool-system   │ │    tool-web     │
-     │                 │ │                 │   │                 │ │                 │
-     │  get_weather    │ │  read_file      │   │  get_ram_usage  │ │    http_get     │
-     │                 │ │  write_file     │   │  get_cpu_usage  │ │    http_post    │
-     │                 │ │  list_directory │   │  get_disk_usage │ │                 │
-     │                 │ │  search_files   │   │  get_processes  │ │                 │
-     │                 │ │                 │   │                 │ │                 │
-     │  (stdin/stdout) │ │  (stdin/stdout) │   │  (stdin/stdout) │ │   (stdin/out)   │
-     │                 │ │                 │   │                 │ │                 │
-     └─────────────────┘ └─────────────────┘   └─────────────────┘ └─────────────────┘
+  ┌────────────────────────────────────────────────────────────────┐
+  │                         USER INPUT                             │
+  └───────────────────────┬────────────────────────────────────────┘
+                          │
+            ┌─────────────┴─────────────┐
+            ▼                           ▼
+  ┌──────────────────┐        ┌──────────────────┐
+  │   mcp-agent      │        │ mcp-agent-cli     │
+  │  (headless CLI)  │        │   (TUI)           │
+  │                  │        │                    │
+  │  mcp-agent \     │        │  /skill coding    │
+  │    coding "fix"  │        │  > fix the bug    │
+  └────────┬─────────┘        └────────┬──────────┘
+           │                           │
+           └───────────┬───────────────┘
+                       ▼
+          ┌────────────────────────┐
+          │      mcp-client        │
+          │   (Orchestrator +      │
+          │    SkillLoader +       │
+          │    LLM Providers)     │
+          └───────────┬────────────┘
+                      │
+      ┌───────┬───────┼───────┬───────────┐
+      ▼       ▼       ▼       ▼           ▼
+  tool-    tool-    tool-  tool-      tool-
+  weather  filesystem system  web        shell
+  (bin)    (bin)    (bin)   (bin)      (bin)
+```
+
+## Usage
+
+### Headless (`mcp-agent`)
+
+```bash
+# Build
+cargo build --release
+
+# Run a skill with a prompt
+mcp-agent <skill> "<prompt>"
+
+# Examples
+mcp-agent coding "fix the typo in README.md"
+mcp-agent init-web-project "scaffold a react project"
+mcp-agent personal "what's the weather in Tokyo?"
+mcp-agent devops "show me the top processes by CPU"
+mcp-agent data "format the JSON in package.json"
+```
+
+All config comes from `.mcp-agent/config.toml`:
+
+```toml
+[model]
+name = "glm-5:cloud"
+base_url = "http://localhost:11434"
+
+[tools]
+allowed_root = "."
+
+[paths]
+# tool-shell = "/usr/local/bin/tool-shell"
+```
+
+### TUI (`mcp-agent-cli`)
+
+```bash
+# Run with defaults (coding skill, glm-5:cloud model)
+./target/release/mcp-agent-cli
+
+# Specific skill and model
+./target/release/mcp-agent-cli --skill personal --model glm-4
+
+# Inside the TUI:
+/skill coding
+What files are in this directory?
+/model glm-4
+/skill personal
+What's the weather in Tokyo?
 ```
 
 ## Project Structure
 
 ```
 rust-mcp-agent-kit/
-├── Cargo.toml                          # Workspace configuration
+├── .mcp-agent/
+│   ├── config.example.toml      # Project config template (model, allowed_root, tool paths)
+│   └── config.toml              # Local config (gitignored)
 ├── crates/
-│   ├── mcp-core/                        # Protocol library (JSON-RPC, Tool trait, Server)
-│   ├── mcp-client/                      # Client library (LLM providers, orchestration)
-│   ├── mcp-agent-cli/                   # Interactive TUI for AI chat
-│   └── mcp-tools/                       # Tool implementations
-│       ├── tool-weather/                # get_weather
-│       ├── tool-filesystem/             # read_file, write_file, list_directory, search_files
-│       ├── tool-system/                 # get_ram_usage, get_cpu_usage, get_disk_usage, get_processes
-│       ├── tool-web/                    # http_get, http_post
-│       └── tool-utilities/              # calculate, format_json, current_time
-└── skills/                             # Tool skills (config files)
-    ├── coding.toml                      # Tools for coding assistance
-    ├── personal.toml                    # Personal assistant tools
-    ├── devops.toml                      # DevOps tools
-    └── data.toml                        # Data processing tools
+│   ├── mcp-core/                # Protocol library (JSON-RPC, Tool trait, Server)
+│   ├── mcp-client/              # Client library (Orchestrator, SkillLoader, LLM providers)
+│   ├── mcp-agent/               # Headless binary — mcp-agent <skill> "<prompt>"
+│   ├── mcp-agent-cli/           # Interactive TUI
+│   └── mcp-tools/
+│       ├── tool-filesystem/     # read_file, write_file, list_directory, search_files
+│       ├── tool-shell/          # run_command (process group isolation, timeout, output truncation)
+│       ├── tool-system/         # get_ram_usage, get_cpu_usage, get_disk_usage, get_processes
+│       ├── tool-web/            # http_get, http_post
+│       ├── tool-weather/        # get_weather
+│       └── tool-utilities/      # calculate, format_json, current_time
+└── skills/                      # Markdown-based skill definitions
+    ├── coding.md
+    ├── personal.md
+    ├── devops.md
+    ├── data.md
+    └── init-web-project.md      # State-machine skill (PLAN → EXECUTE → VERIFY)
 ```
 
 ## Crates
 
-| Crate | Description | Status |
-|-------|-------------|--------|
-| `mcp-core` | Protocol library: JSON-RPC types, Tool/Command traits, Server infrastructure | Done |
-| `mcp-client` | Client library: LLM providers (Ollama, OpenAI, Mock), tool orchestration | Done |
-| `mcp-agent-cli` | Interactive TUI for AI chat with tools | Done |
+| Crate | Description | Type |
+|-------|-------------|------|
+| `mcp-core` | Protocol: JSON-RPC types, Tool/Command traits, Server | Library |
+| `mcp-client` | Orchestrator, SkillLoader, LLM providers (Ollama, Mock) | Library |
+| `mcp-agent` | Headless binary: `mcp-agent <skill> "<prompt>"` | Binary |
+| `mcp-agent-cli` | Interactive TUI for AI chat | Binary |
 
 ## Tools
 
-All tools are located under `crates/mcp-tools/`. Each tool crate is a standalone binary.
+All tools are standalone binaries under `crates/mcp-tools/`. They communicate via stdin/stdout JSON-RPC 2.0.
 
-### tool-weather
-
-| Tool | Description |
-|------|-------------|
-| `get_weather` | Get current weather for a city via wttr.in |
-
-### tool-filesystem
-
-| Tool | Description |
-|------|-------------|
-| `read_file` | Read file contents |
-| `write_file` | Write content to file |
-| `list_directory` | List directory contents |
-| `search_files` | Search for files matching a regex pattern |
-
-### tool-system
-
-| Tool | Description |
-|------|-------------|
-| `get_ram_usage` | Get RAM usage statistics |
-| `get_cpu_usage` | Get CPU usage per core |
-| `get_disk_usage` | Get disk space usage |
-| `get_processes` | List top processes by CPU usage |
-
-### tool-web
-
-| Tool | Description |
-|------|-------------|
-| `http_get` | Make HTTP GET request |
-| `http_post` | Make HTTP POST request with JSON body |
-
-### tool-utilities
-
-| Tool | Description |
-|------|-------------|
-| `calculate` | Evaluate mathematical expressions (+, -, *, /, %, parentheses) |
-| `format_json` | Parse and pretty-print JSON |
-| `current_time` | Get current date and time |
+| Tool Crate | Functions | Security |
+|------------|-----------|----------|
+| `tool-filesystem` | read_file, write_file, list_directory, search_files | Lexical path guard (MCP_ALLOWED_ROOT) |
+| `tool-shell` | run_command | Process group kill, timeout, env injection, output truncation, working dir validation |
+| `tool-system` | get_ram_usage, get_cpu_usage, get_disk_usage, get_processes | Read-only |
+| `tool-web` | http_get, http_post | — |
+| `tool-weather` | get_weather | — |
+| `tool-utilities` | calculate, format_json, current_time | — |
 
 ## Skills
 
-Skills define which tools are available to an agent. Each skill is a TOML config file.
+Skills are Markdown files with YAML frontmatter. They define which tools an agent can use, behavioral constraints, and the prompt sent to the LLM.
 
-| Skill | Description | Tools |
-|-------|-------------|-------|
-| `coding` | Coding assistance | filesystem, web, utilities |
-| `personal` | Personal assistant | weather, utilities |
-| `devops` | DevOps operations | system, web, utilities |
-| `data` | Data processing | utilities, filesystem |
+| Skill | Description | Tools | State Machine |
+|-------|-------------|-------|---------------|
+| `coding` | Coding assistance | filesystem, web, utilities | — |
+| `personal` | Personal assistant | weather, utilities | — |
+| `devops` | DevOps operations | system, web, utilities | — |
+| `data` | Data processing | utilities, filesystem | — |
+| `init-web-project` | Scaffold a web project | shell, filesystem | PLAN → EXECUTE → VERIFY |
 
-### Skill Structure
+### Skill Format
 
-```toml
-# skills/coding.toml
-[skill]
-name = "coding"
-description = "Skill for coding assistance with file operations and web access."
+```markdown
+---
+skill: my-skill
+description: "What this skill does"
+tools:
+  - tool-filesystem
+  - tool-shell
+constraints:
+  timeout_secs: 60
+  max_output_chars: 3000
+  max_iterations: 3
+state_machine:
+  - PLAN
+  - EXECUTE
+  - VERIFY
+input_required: false
+---
 
-[tools]
-tool-filesystem = { enabled = true }
-tool-web = { enabled = true }
-tool-utilities = { enabled = true }
+# ROLE
+You are a senior engineer...
+
+# PROCESS
+Instructions for the LLM, with {{max_iterations}} template variables.
 ```
 
-### How Skills Work
+### Skill Resolution
 
-```
-User: /skill coding
+Skills load from three tiers (first match wins):
 
-mcp-client:
-  1. Read skills/coding.toml
-  2. Identify enabled tools
-  3. Spawn tool-filesystem, tool-web, tool-utilities processes
-  4. Collect tool definitions from each
-  5. Send tools to LLM
-  6. LLM uses only available tools
-```
+1. **Project**: `.mcp-agent/skills/`
+2. **User**: `~/.config/mcp-agent/skills/`
+3. **Base**: `<executable_dir>/skills/`
 
-### Behavior Change
+### Creating a Custom Skill
 
-| Skill | Tools Available | LLM Behavior |
-|-------|-----------------|--------------|
-| `coding` | read/write files, web | "I can edit code, fetch docs" |
-| `personal` | weather, calculate, time | "I can answer questions, check weather" |
-| `devops` | system stats, web | "I can monitor infrastructure" |
-
-## mcp-agent-cli
-
-Interactive terminal UI for AI chat with MCP tools.
-
-### Features
-
-- **Status bar**: Shows model, skill, tool count
-- **Chat panel**: Messages with color-coded senders
-- **Input bar**: Type messages or commands
-- **Tool call display**: Shows tool calls and results inline
-
-### Screenshots
-
-#### Chat Interface using coding skill
-![Chat with tool calls](examples/screen_1.png)
-
-#### Skill Selection
-![Skill selection popup](examples/screen_2.png)
-
-#### Chat Interface using personal skill
-![Model selection popup](examples/screen_3.png)
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `/help` | Show available commands |
-| `/skill <name>` | Load skill (coding, personal, devops, data) |
-| `/model <name>` | Switch LLM model |
-| `/tools` | List loaded tools |
-| `/mode` | Toggle Plan/Build mode |
-| `/clear` | Clear chat history |
-| `/quit` | Exit CLI |
-
-### Usage
-
-```bash
-# Build all
-cargo build --release
-
-# Run CLI with defaults (coding skill, glm-5:cloud model)
-./target/release/mcp-agent-cli
-
-# Run with specific skill and model
-./target/release/mcp-agent-cli --skill personal --model glm-4
-
-# Short flags
-./target/release/mcp-agent-cli -s devops -m llama3.1
-
-# Inside CLI:
-/skill coding
-What files are in this directory?
-> [Tool: list_directory] → [Result: Cargo.toml, src/, ...]
-
-/model glm-4
-/skill personal
-What's the weather in Tokyo?
-> [Tool: get_weather] → [Result: Rainy, 15°C]
-```
+1. Create `skills/my-skill.md` (or `.mcp-agent/skills/my-skill.md` for project-level)
+2. Run: `mcp-agent my-skill "do the thing"`
 
 ## Key Design Decisions
 
-### Tools in `mcp-tools/`, Skills as Config
+### Tools as Separate Binaries
 
-- **Tools** = Rust code implementing the `Tool` trait
-- **Skills** = TOML config files defining which tools to use
-- **Separation** = Logic lives in tools, skills are just configuration
+- Each tool is a standalone process communicating via stdin/stdout JSON-RPC
+- `tool-filesystem` validates paths lexically (no `canonicalize()`) against `MCP_ALLOWED_ROOT`
+- `tool-shell` runs commands in isolated process groups with `libc::kill(-pgid, SIGKILL)` on timeout
 
-### Skill-based Tool Selection
+### Skills as Markdown
 
-- Each skill enables specific tools
-- LLM adapts behavior based on available tools
-- User explicitly chooses skill: `/skill coding`
-- Different skills = different agent "modes"
+- YAML frontmatter for config (tools, constraints, state machine)
+- Markdown body for the LLM prompt (role, process, rules)
+- Template variables (`{{max_iterations}}`) resolved at render time
+- `SkillManifest` (parsed) → `Skill` (rendered) separation
 
-### Microservices Architecture
+### Config Layering
 
-Each tool crate:
-- Is a **separate binary** (separate process)
-- Communicates via stdin/stdout (MCP protocol)
-- Has isolated environment
-- Can be deployed independently
-
-### LLM Provider Abstraction
-
-```rust
-pub trait ChatClient {
-    fn chat(&self, messages: Vec<Message>, tools: Vec<ToolDefinition>) -> Result<ChatResponse, String>;
-}
-
-OllamaProvider::new("http://localhost:11434", "glm-5:cloud")
-OpenAIProvider::new("sk-...", "gpt-4o")
-MockProvider::with_tool_call("get_weather", r#"{"city": "Paris"}"#)
-```
-
-## Quick Start
-
-```bash
-# Clone repository
-git clone https://github.com/estvv/rust-mcp-agent-kit.git
-cd rust-mcp-agent-kit
-
-# Build all crates
-cargo build --release
-
-# Run CLI
-./target/release/mcp-agent-cli
-
-# Inside CLI:
-/skill coding
-Hello, what can you do?
-```
-
-## Testing
-
-```bash
-# Test tools directly
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | target/release/tool-weather
-
-# Call a tool
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_weather","arguments":{"city":"Paris"}}}' | target/release/tool-weather
-```
+| Layer | Source | Controls |
+|-------|--------|----------|
+| Tool defaults | Hardcoded in binary | timeout=30, max_output=2000 |
+| Skill overrides | `.md` frontmatter `constraints` | timeout=60 for init-web-project |
+| Deployment | `.mcp-agent/config.toml` | model, allowed_root, binary paths |
 
 ## Using mcp-client Programmatically
 
 ```rust
-use mcp_client::{Orchestrator, OllamaProvider, Skill};
+use mcp_client::{Orchestrator, OllamaProvider, SkillLoader};
+use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load skill
-    let skill = Skill::load_by_name("coding")?;
+    let loader = SkillLoader::new();
+    let manifest = loader.load_by_name("coding")?;
+    let skill = manifest.render(&HashMap::new());
 
-    // Create provider and orchestrator
     let provider = OllamaProvider::new("http://localhost:11434", "glm-5:cloud");
     let mut orch = Orchestrator::new(provider);
 
-    // Spawn tools from skill
-    for tool in skill.enabled_tools() {
-        orch.spawn_tool(tool, tool)?;
+    for tool in &skill.tools {
+        orch.spawn_tool(tool, &format!("target/release/{}", tool))?;
     }
 
-    // Chat with automatic tool execution
-    let response = orch.chat("What's the weather in Paris?")?;
+    let response = orch.chat("list the files in this directory")?;
     println!("{}", response);
-
     Ok(())
 }
 ```
+
+## Model Compatibility
+
+Works with any LLM that supports function calling via OpenAI-compatible `/v1/chat/completions`:
+
+| Provider | Models |
+|----------|--------|
+| **Ollama** | GLM-4, GLM-5:cloud, Llama 3.1+, Mistral, Qwen |
+| **OpenAI** | GPT-4, GPT-4o, GPT-3.5-turbo |
+| **Anthropic** | Claude 3+ (via OpenAI-compatible endpoint) |
+| **Mock** | For testing without LLM |
+
+## Development
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo fmt --check
+cargo clippy --workspace -- -D warnings
+```
+
+## Documentation
+
+- [docs/ROADMAP.md](./docs/ROADMAP.md) - Development roadmap
+- [docs/FEATURES.md](./docs/FEATURES.md) - Feature reference
+- [skills/README.md](./skills/README.md) - Skill format documentation
+
+## License
+
+MIT License
+
+## References
+
+- [MCP Specification](https://modelcontextprotocol.io/)
+- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
+- [Ollama OpenAI Compatibility](https://github.com/ollama/ollama/blob/main/docs/openai.md)
 
 ## Creating a New Tool
 
@@ -403,62 +336,3 @@ impl Tool for MyTool {
 
 inventory::submit! { ToolEntry { tool: &MyTool } }
 ```
-
-## Dependencies
-
-| Crate | Usage |
-|-------|-------|
-| `tokio` | Async runtime |
-| `serde` / `serde_json` | Serialization |
-| `inventory` | Compile-time tool registration |
-| `minreq` | HTTP client (lightweight) |
-| `ratatui` | TUI framework (mcp-agent-cli) |
-| `crossterm` | Terminal control (mcp-agent-cli) |
-| `sysinfo` | System information (tool-system) |
-| `regex` | Pattern matching (tool-filesystem) |
-| `chrono` | Date/time (tool-utilities) |
-
-## Model Compatibility
-
-Works with any LLM that supports function calling:
-
-| Provider | Models |
-|----------|--------|
-| **Ollama** | GLM-4, GLM-5:cloud, Llama 3.1+, Mistral, Qwen |
-| **OpenAI** | GPT-4, GPT-4o, GPT-3.5-turbo |
-| **Anthropic** | Claude 3+ (via OpenAI-compatible endpoint) |
-| **Mock** | For testing without LLM |
-
-Uses OpenAI-compatible `/v1/chat/completions` endpoint.
-
-## Development
-
-```bash
-# Build all
-cargo build --workspace
-
-# Run tests
-cargo test --workspace
-
-# Check formatting
-cargo fmt --check
-
-# Lint
-cargo clippy --workspace -- -D warnings
-```
-
-## Documentation
-
-- [docs/ROADMAP.md](./docs/ROADMAP.md) - Development roadmap
-- [docs/FEATURES.md](./docs/FEATURES.md) - Feature reference
-- [skills/README.md](./skills/README.md) - Skill documentation
-
-## License
-
-MIT License
-
-## References
-
-- [MCP Specification](https://modelcontextprotocol.io/)
-- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
-- [Ollama OpenAI Compatibility](https://github.com/ollama/ollama/blob/main/docs/openai.md)

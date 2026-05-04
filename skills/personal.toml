@@ -1,7 +1,0 @@
-[skill]
-name = "personal"
-description = "Personal assistant tools - weather, calculations, time"
-
-[tools]
-tool-weather = { enabled = true }
-tool-utilities = { enabled = true }

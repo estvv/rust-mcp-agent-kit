@@ -5,24 +5,26 @@
 // 2. Spawning tools from skill
 // 3. Multi-turn conversation loop with tool calling
 
-use mcp_client::{Orchestrator, MockProvider, Skill};
+use mcp_client::{Orchestrator, MockProvider, SkillLoader};
 
 fn main() {
     println!("=== MCP Orchestrator Test ===\n");
 
-    // 1. Load skill by name (looks in skills/{name}.toml)
+    // 1. Load skill by name
     let skill_name = "personal";
     println!("Loading skill: {}", skill_name);
-    
-    let skill = match Skill::load_by_name(skill_name) {
-        Ok(s) => s,
+
+    let loader = SkillLoader::new();
+    let manifest = match loader.load_by_name(skill_name) {
+        Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load skill: {}", e);
             eprintln!("Note: Run this example from the workspace root directory");
             std::process::exit(1);
         }
     };
-    
+    let skill = manifest.render(&std::collections::HashMap::new());
+
     println!("Skill: {} - {}", skill.name(), skill.description());
     println!("Enabled tools: {:?}\n", skill.enabled_tools());
 
@@ -36,7 +38,7 @@ fn main() {
     for tool_name in skill.enabled_tools() {
         let binary = format!("target/debug/{}", tool_name);
         println!("  Spawning: {} ({})", tool_name, binary);
-        
+
         match orchestrator.spawn_tool(&tool_name, &binary) {
             Ok(_) => println!("    OK"),
             Err(e) => eprintln!("    Failed: {}", e),
@@ -52,7 +54,7 @@ fn main() {
     // 5. Test direct tool execution
     println!("\n=== Direct Tool Test ===");
     println!("Calling get_weather(city='Paris')...");
-    
+
     match orchestrator.chat("What's the weather in Paris?") {
         Ok(response) => println!("Response: {}", response),
         Err(e) => eprintln!("Error: {}", e),

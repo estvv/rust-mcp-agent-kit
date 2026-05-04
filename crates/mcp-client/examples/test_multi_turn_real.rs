@@ -2,7 +2,7 @@
 //
 // Real multi-turn test with Ollama (requires ollama serve + model)
 
-use mcp_client::{Orchestrator, OllamaProvider, Skill};
+use mcp_client::{Orchestrator, OllamaProvider, SkillLoader};
 
 fn main() {
     println!("=== Multi-turn with Ollama ===\n");
@@ -10,20 +10,22 @@ fn main() {
     // Check if Ollama is available
     println!("Checking Ollama...");
     let test_client = OllamaProvider::new("http://localhost:11434", "glm-5:cloud");
-    
-    let skill = match Skill::load("skills/personal.toml") {
-        Ok(s) => s,
+
+    let loader = SkillLoader::new();
+    let manifest = match loader.load_by_name("personal") {
+        Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load skill: {}. Run from workspace root.", e);
             std::process::exit(1);
         }
     };
-    
+    let skill = manifest.render(&std::collections::HashMap::new());
+
     println!("Skill: {}\n", skill.name());
 
     // Create orchestrator
     let mut orchestrator = Orchestrator::new(test_client);
-    
+
     // Spawn tools
     println!("Spawning tools from skill...");
     for tool_name in skill.enabled_tools() {

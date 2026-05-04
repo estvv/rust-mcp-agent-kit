@@ -1,6 +1,6 @@
 // src/state.rs
 
-use mcp_client::Skill;
+use mcp_client::SkillLoader;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Mode {
@@ -155,15 +155,17 @@ impl App {
     }
 
     fn load_available_skills() -> Vec<SkillInfo> {
-        let skill_names = ["coding", "personal", "devops", "data"];
+        let loader = SkillLoader::new();
+        let skill_names = ["coding", "personal", "devops", "data", "init-web-project"];
         skill_names
             .iter()
             .filter_map(|name| {
-                Skill::load_by_name(name).ok().map(|skill| {
-                    let tools = skill.enabled_tools();
+                loader.load_by_name(name).ok().map(|manifest| {
+                    let tools = manifest.tools.clone();
+                    let tool_count = tools.len();
                     SkillInfo {
                         name: name.to_string(),
-                        tool_count: tools.len(),
+                        tool_count,
                         tools,
                     }
                 })
@@ -172,7 +174,9 @@ impl App {
     }
 
     pub fn load_skill(&mut self, name: &str) -> Result<(), String> {
-        let skill = Skill::load_by_name(name)?;
+        let loader = SkillLoader::new();
+        let manifest = loader.load_by_name(name)?;
+        let skill = manifest.render(&std::collections::HashMap::new());
         let tools = skill.enabled_tools();
         let tool_count = tools.len();
 

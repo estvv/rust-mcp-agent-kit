@@ -1,8 +1,0 @@
-[skill]
-name = "devops"
-description = "DevOps tools - system monitoring, web requests"
-
-[tools]
-tool-system = { enabled = true }
-tool-web = { enabled = true }
-tool-utilities = { enabled = true }

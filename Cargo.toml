@@ -9,4 +9,6 @@ members = [
     "crates/mcp-tools/tool-system",
     "crates/mcp-tools/tool-web",
     "crates/mcp-tools/tool-utilities",
+    "crates/mcp-tools/tool-shell",
+    "crates/mcp-agent",
 ]
